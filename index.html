@@ -300,10 +300,14 @@
             </div>
 
             <div class="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar pb-1">
-                <div class="flex items-center gap-1 bg-black/5 p-1 rounded-xl border border-white/10 shrink-0">
-                    <button onclick="changeMonth(-1)" class="p-1.5 hover:bg-white/20 rounded-lg text-current"><i data-lucide="chevron-left" size="16"></i></button>
-                    <div id="monthLabel" onclick="openYearModal()" class="px-2 font-black text-[10px] md:text-sm min-w-[100px] text-center uppercase text-current whitespace-nowrap">Monat</div>
-                    <button onclick="changeMonth(1)" class="p-1.5 hover:bg-white/20 rounded-lg text-current"><i data-lucide="chevron-right" size="16"></i></button>
+                <div class="flex flex-col items-center gap-0">
+                    <div class="flex items-center gap-1 bg-black/5 p-1 rounded-xl border border-white/10 shrink-0">
+                        <button onclick="changeMonth(-1)" class="p-1.5 hover:bg-white/20 rounded-lg text-current"><i data-lucide="chevron-left" size="16"></i></button>
+                        <div id="monthLabel" onclick="openYearModal()" class="px-2 font-black text-[10px] md:text-sm min-w-[100px] text-center uppercase text-current whitespace-nowrap">Monat</div>
+                        <button onclick="changeMonth(1)" class="p-1.5 hover:bg-white/20 rounded-lg text-current"><i data-lucide="chevron-right" size="16"></i></button>
+                    </div>
+                    <!-- Neu: Arbeitstage Anzeige direkt unter dem Monat -->
+                    <div id="headerWorkingDays" class="text-[9px] font-bold text-blue-500/80 uppercase tracking-tighter text-center -mt-0.5">-- Arbeitstage</div>
                 </div>
 
                 <div class="flex gap-1 shrink-0">
@@ -484,7 +488,9 @@
             const workingDaysCount = calculateWorkingDays(year, month);
             const monthTargetHours = workingDaysCount * 7.7;
             
+            // Header aktualisieren
             document.getElementById('monthLabel').innerText = currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' });
+            document.getElementById('headerWorkingDays').innerText = `${workingDaysCount} Arbeitstage`;
             
             const dailyCounts = {};
             days.forEach(day => {
@@ -729,7 +735,7 @@
         function toggleTheme() { let mode = document.body.classList.toggle('light-mode'); localStorage.setItem('theme', mode ? 'light' : 'dark'); renderRoster(); }
         function toggleWarnings() { showWarnings = !showWarnings; document.getElementById('toggleWarningBtn').classList.toggle('bg-rose-500', showWarnings); renderRoster(); }
         function openYearModal() { document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); document.getElementById('yearViewOverlay').style.display = 'flex'; }
-        function closeYearModal() { document.getElementById('yearViewOverlay').style.display = 'none'; }
+        function closeYearModal() { document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); document.getElementById('yearViewOverlay').style.display = 'none'; }
         function renderMonthGrid() { const container = document.getElementById('monthGrid'); container.innerHTML = ''; const months = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]; months.forEach((m, i) => { const btn = document.createElement('button'); const isCurrent = currentDate.getMonth() === i; btn.className = `p-3 rounded-xl text-[9px] font-black uppercase transition-all border ${isCurrent ? 'bg-blue-600 text-white' : 'bg-black/5 text-current'}`; btn.innerText = m; btn.onclick = () => { currentDate.setMonth(i); renderRoster(); closeYearModal(); }; container.appendChild(btn); }); }
         function changeYear(o) { currentDate.setFullYear(currentDate.getFullYear() + o); document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); }
         
