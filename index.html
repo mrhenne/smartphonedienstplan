@@ -2,19 +2,15 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dienstplan Pro - Helios Notaufnahme</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        window.firebaseCore = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, doc, setDoc, getDoc, collection, onSnapshot, serverTimestamp };
-    </script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
 
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -22,28 +18,29 @@
             --bg-color: #020617;
             --text-primary: #ffffff; 
             --text-secondary: #94a3b8;
-            --glass-bg: rgba(255, 255, 255, 0.03);
-            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
             --table-header-bg: #0f172a;
-            --row-hover: rgba(59, 130, 246, 0.08);
-            --separator-color: rgba(255, 255, 255, 0.05);
-            --holiday-color: rgba(234, 179, 8, 0.15);
-            --weekend-color: rgba(59, 130, 246, 0.08);
-            --name-shadow: rgba(0,0,0,0.6);
+            --row-hover: rgba(255, 255, 255, 0.05);
+            --separator-color: rgba(255, 255, 255, 0.08);
+            --holiday-color: rgba(234, 179, 8, 0.35);
+            --weekend-color: rgba(59, 130, 246, 0.15);
+            --zoom-factor: 1;
+            --name-shadow: rgba(0,0,0,0.5);
         }
 
         .light-mode {
-            --bg-color: #f1f5f9;
+            --bg-color: #f8fafc;
             --text-primary: #0f172a; 
             --text-secondary: #64748b;
-            --glass-bg: rgba(255, 255, 255, 0.8); 
-            --glass-border: rgba(0, 0, 0, 0.05);
+            --glass-bg: rgba(255, 255, 255, 0.95); 
+            --glass-border: rgba(0, 0, 0, 0.1);
             --table-header-bg: #ffffff;
-            --row-hover: rgba(59, 130, 246, 0.04); 
-            --separator-color: rgba(15, 23, 42, 0.05);
-            --holiday-color: rgba(234, 179, 8, 0.1);
-            --weekend-color: rgba(59, 130, 246, 0.05);
-            --name-shadow: rgba(15, 23, 42, 0.1);
+            --row-hover: rgba(59, 130, 246, 0.05); 
+            --separator-color: rgba(15, 23, 42, 0.08);
+            --holiday-color: rgba(234, 179, 8, 0.25);
+            --weekend-color: rgba(59, 130, 246, 0.08);
+            --name-shadow: rgba(15, 23, 42, 0.05);
         }
 
         body {
@@ -52,33 +49,65 @@
             color: var(--text-primary);
             margin: 0;
             overflow: hidden;
-            transition: background 0.3s ease;
+            transition: background 0.4s ease, color 0.4s ease;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .glass {
             background: var(--glass-bg);
-            backdrop-filter: blur(16px);
+            backdrop-filter: blur(20px);
             border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
         }
 
         .name-col-bg {
             background: var(--bg-color) !important;
-            box-shadow: 10px 0 15px -10px var(--name-shadow);
+            box-shadow: 4px 0 12px -4px var(--name-shadow);
             z-index: 50;
         }
 
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(120, 120, 120, 0.2);
+            background: rgba(120, 120, 120, 0.3);
             border-radius: 10px;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(120, 120, 120, 0.4); }
 
         .holiday-cell { background-color: var(--holiday-color) !important; }
         .weekend-cell { background-color: var(--weekend-color) !important; }
         
-        .warning-cell { background-color: rgba(225, 29, 72, 0.1) !important; }
+        .row-separator td {
+            border-bottom: 1px solid var(--separator-color);
+        }
+
+        .warning-cell {
+            background-color: rgba(225, 29, 72, 0.15) !important;
+            box-shadow: inset 0 0 10px rgba(225, 29, 72, 0.2);
+        }
+
+        #columnOverlay, #modalOverlay, #addEmpOverlay, #editEmpOverlay, #shiftModalOverlay, #yearViewOverlay, #noteModalOverlay, #toast {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+            z-index: 200; align-items: center; justify-content: center;
+            padding: 1rem;
+        }
+
+        #toast {
+            background: transparent;
+            backdrop-filter: none;
+            height: auto;
+            top: 1rem;
+            pointer-events: none;
+        }
+
+        #rosterTable {
+            zoom: var(--zoom-factor);
+            transform-origin: top left;
+        }
+
+        .hidden-col { display: none !important; }
 
         .sticky-left {
             position: sticky;
@@ -86,200 +115,292 @@
             z-index: 40;
         }
 
-        /* Overlay Styles */
-        .overlay-base {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
-            z-index: 200; align-items: center; justify-content: center;
+        @media (max-width: 768px) {
+            #yearViewOverlay .glass { width: 100% !important; height: 80vh; overflow-y: auto; }
+            .name-col-bg { min-width: 140px !important; width: 140px !important; }
         }
 
-        #toast {
-            position: fixed;
-            top: 1.5rem;
-            right: 1.5rem;
-            z-index: 300;
-            pointer-events: none;
-            display: none;
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
-
-        .hidden-col { display: none !important; }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.3s ease forwards; }
+        .animate-spin-fast { animation: spin 0.8s linear infinite; }
     </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden">
+<body class="h-screen flex flex-col">
 
-    <!-- Toast -->
-    <div id="toast" class="animate-fade-in">
-        <div class="glass px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 min-w-[200px]">
-            <div id="toastIcon"></div>
-            <span id="toastMessage" class="text-sm font-bold"></span>
+    <!-- Toast Notification -->
+    <div id="toast">
+        <div class="glass px-6 py-3 rounded-2xl shadow-2xl border border-white/20 flex items-center gap-3">
+            <div id="toastIcon" class="text-blue-500"></div>
+            <span id="toastMessage" class="text-sm font-bold text-current"></span>
         </div>
     </div>
 
-    <!-- Modals (Simplified for brevity, but all functional) -->
-    <div id="columnOverlay" class="overlay-base" onclick="closeColumnModal()">
-        <div class="glass p-8 rounded-3xl w-[400px] shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
-            <h3 class="text-xl font-black flex items-center gap-2"><i data-lucide="settings"></i> Anzeige-Optionen</h3>
-            <div class="grid grid-cols-1 gap-3" id="columnToggleList"></div>
-            <div class="border-t border-white/10 pt-4">
-                <p class="text-[10px] uppercase font-black text-slate-500 mb-3">Zähl-Filter</p>
-                <div class="flex flex-wrap gap-2" id="shiftToggleList"></div>
+    <!-- Modale -->
+    <div id="yearViewOverlay" onclick="closeYearModal()">
+        <div class="glass p-6 md:p-8 rounded-3xl w-full md:w-[450px] shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
+            <h3 class="text-xl font-black text-center flex items-center justify-center gap-3 text-current">
+                <i data-lucide="calendar"></i> Jahresplaner <span id="yearDisplay" class="text-blue-500">2026</span>
+            </h3>
+            <div class="grid grid-cols-3 gap-2 md:gap-3" id="monthGrid"></div>
+            <div class="flex gap-2 justify-center border-t border-white/10 pt-4">
+                <button onclick="changeYear(-1)" class="p-2 glass rounded-xl hover:bg-white/10 text-current transition-all"><i data-lucide="chevron-left"></i></button>
+                <button onclick="closeYearModal()" class="px-8 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-lg">Schließen</button>
+                <button onclick="changeYear(1)" class="p-2 glass rounded-xl hover:bg-white/10 text-current transition-all"><i data-lucide="chevron-right"></i></button>
             </div>
-            <button onclick="closeColumnModal()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-colors">Übernehmen</button>
         </div>
     </div>
 
-    <!-- Main Navigation Bar -->
-    <nav class="glass border-b border-white/5 px-6 py-3 flex items-center justify-between shrink-0">
-        <div class="flex items-center gap-6">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20">
-                    <i data-lucide="shield-plus" class="text-white" size="20"></i>
-                </div>
-                <div>
-                    <h1 class="text-lg font-black tracking-tight leading-none">Dienstplan <span class="text-blue-500 italic">PRO</span></h1>
-                    <span class="text-[9px] uppercase font-bold text-slate-500 tracking-widest" id="syncLabel">Station: Notaufnahme Duisburg</span>
-                </div>
-            </div>
-
-            <div class="h-8 w-px bg-white/10 mx-2"></div>
-
-            <div class="flex items-center gap-2">
-                <button onclick="changeMonth(-1)" class="p-2 hover:bg-white/10 rounded-lg transition-colors"><i data-lucide="chevron-left" size="18"></i></button>
-                <button onclick="openYearModal()" id="monthLabel" class="px-4 py-1.5 glass rounded-xl text-sm font-black uppercase tracking-wider hover:border-blue-500/50 transition-all">März 2026</button>
-                <button onclick="changeMonth(1)" class="p-2 hover:bg-white/10 rounded-lg transition-colors"><i data-lucide="chevron-right" size="18"></i></button>
-            </div>
-        </div>
-
-        <div class="flex items-center gap-3">
-            <button onclick="toggleWarnings()" id="warningBtn" class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border border-rose-500/20 text-rose-500 hover:bg-rose-500/10 transition-all">
-                <i data-lucide="alert-circle" size="16"></i> Unterbesetzung
-            </button>
-            <div class="h-6 w-px bg-white/10"></div>
-            <button onclick="openAddEmpOverlay()" class="flex items-center gap-2 px-4 py-2 bg-emerald-600/10 text-emerald-500 border border-emerald-500/20 rounded-xl text-xs font-bold hover:bg-emerald-600/20 transition-all">
-                <i data-lucide="user-plus" size="16"></i> Personal
-            </button>
-            <button onclick="openColumnModal()" class="p-2.5 glass rounded-xl hover:bg-white/10 transition-all"><i data-lucide="sliders-horizontal" size="18"></i></button>
-            <button onclick="toggleTheme()" class="p-2.5 glass rounded-xl hover:bg-white/10 transition-all"><i data-lucide="moon" id="themeIcon" size="18"></i></button>
-            <button onclick="saveData()" class="p-2.5 bg-blue-600 text-white rounded-xl shadow-lg hover:bg-blue-500 transition-all active:scale-95"><i data-lucide="save" id="saveIcon" size="18"></i></button>
-        </div>
-    </nav>
-
-    <div class="flex flex-1 overflow-hidden">
-        <!-- Sidebar: Schichtpalette -->
-        <aside class="w-20 lg:w-56 glass border-r border-white/5 flex flex-col p-4 shrink-0">
-            <p class="text-[10px] uppercase font-black text-slate-500 mb-4 hidden lg:block tracking-widest">Werkzeuge</p>
-            <div id="shiftPalette" class="flex flex-col gap-2 overflow-y-auto no-scrollbar flex-1">
-                <!-- Palette via JS -->
-            </div>
-            <div class="mt-4 pt-4 border-t border-white/5">
-                <button onclick="openShiftModal()" class="w-full flex items-center justify-center lg:justify-start gap-3 p-3 rounded-xl hover:bg-white/5 text-slate-400 transition-all">
-                    <i data-lucide="cog" size="20"></i>
-                    <span class="text-xs font-bold hidden lg:block uppercase">Dienste</span>
+    <div id="columnOverlay" onclick="closeColumnModal(event)">
+        <div class="glass p-6 md:p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-4 overflow-y-auto max-h-[90vh]" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-bold text-center text-current">Einstellungen</h3>
+            
+            <div class="border-b border-white/10 pb-4 mb-2">
+                <p class="text-[10px] uppercase font-black text-slate-500 mb-2">Konfiguration</p>
+                <button onclick="closeColumnModal(); openShiftModal()" class="w-full py-3 bg-blue-600/20 border border-blue-500/40 text-blue-500 rounded-xl text-[11px] font-black flex items-center justify-center gap-2">
+                    <i data-lucide="layout-grid" size="14"></i> Dienste verwalten
                 </button>
             </div>
-        </aside>
 
-        <!-- Main Content: Roster Table -->
-        <main class="flex-1 overflow-hidden relative flex flex-col bg-black/10">
-            <div class="flex-1 overflow-auto custom-scrollbar" id="tableContainer">
-                <table class="w-full border-separate border-spacing-0" id="rosterTable">
-                    <thead id="tableHead" class="sticky top-0 z-[60]"></thead>
-                    <tbody id="tableBody" class="divide-y divide-white/5"></tbody>
-                    <tfoot id="tableFoot" class="sticky bottom-0 z-[60]"></tfoot>
-                </table>
+            <div class="border-b border-white/10 pb-4 mb-2">
+                <p class="text-[10px] uppercase font-black text-slate-500 mb-2">Daten-Management</p>
+                <div class="flex flex-col gap-2">
+                    <button onclick="exportData()" class="w-full py-2 bg-blue-500/10 border border-blue-500/30 text-blue-500 rounded-xl text-[11px] font-bold flex items-center justify-center gap-2">
+                        <i data-lucide="download" size="14"></i> Backup herunterladen (.json)
+                    </button>
+                    <label class="w-full py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 rounded-xl text-[11px] font-bold flex items-center justify-center gap-2 cursor-pointer">
+                        <i data-lucide="upload" size="14"></i> Backup einspielen
+                        <input type="file" class="hidden" accept=".json" onchange="importData(event)">
+                    </label>
+                </div>
             </div>
-        </main>
+
+            <div class="border-b border-white/10 pb-2 mb-2">
+                <p class="text-[10px] uppercase font-black text-slate-500 mb-2">Infospalten</p>
+                <div class="flex flex-col gap-2" id="columnToggleList"></div>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase font-black text-slate-500 mb-2">Schichten zählen</p>
+                <div class="flex flex-wrap gap-2" id="shiftToggleList"></div>
+            </div>
+            <button onclick="closeColumnModal()" class="w-full py-4 mt-4 bg-blue-600 text-white rounded-xl font-bold">Fertig</button>
+        </div>
     </div>
 
-    <!-- Fullscreen Overlays (Add/Edit logic remains but styled for desktop) -->
-    <div id="noteModalOverlay" class="overlay-base" onclick="closeNoteModal()">
-        <div class="glass p-8 rounded-3xl w-[450px] shadow-2xl flex flex-col gap-6 animate-fade-in" onclick="event.stopPropagation()">
-            <h3 class="text-xl font-black flex items-center gap-3"><i data-lucide="sticky-note" class="text-yellow-500"></i> Notiz / Dienstwunsch</h3>
-            <p id="noteContext" class="text-xs text-slate-500 font-bold uppercase"></p>
-            <textarea id="noteInput" rows="5" placeholder="..." class="w-full bg-black/20 border border-white/10 rounded-2xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500/50 resize-none"></textarea>
-            <div class="flex gap-3">
-                <button onclick="closeNoteModal()" class="flex-1 py-3 rounded-xl hover:bg-white/5 transition-colors">Abbrechen</button>
-                <button onclick="saveNote()" class="flex-1 py-3 bg-yellow-600 text-white font-bold rounded-xl shadow-lg shadow-yellow-900/20">Speichern</button>
+    <!-- Notiz Modal -->
+    <div id="noteModalOverlay">
+        <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-black text-center text-current flex items-center justify-center gap-2">
+                <i data-lucide="sticky-note" class="text-yellow-500"></i> Notiz / Wunsch
+            </h3>
+            <div class="flex flex-col gap-1">
+                <p id="noteContext" class="text-[10px] text-slate-500 uppercase font-bold text-center"></p>
+                <textarea id="noteInput" rows="4" placeholder="Wunsch oder Notiz hier eintragen..." class="bg-black/5 border border-white/10 rounded-2xl p-4 text-sm text-current focus:outline-none focus:ring-2 focus:ring-yellow-500/50 resize-none"></textarea>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="closeNoteModal()" class="flex-1 py-3 rounded-xl bg-black/5 text-current">Abbrechen</button>
+                <button onclick="saveNote()" class="flex-1 py-3 rounded-xl bg-yellow-600 text-white font-bold shadow-lg">Speichern</button>
             </div>
         </div>
     </div>
 
-    <!-- ... Other Modals (AddEmp, EditEmp, ShiftModal) go here, keep your existing logic but use 'overlay-base' ... -->
-    <div id="yearViewOverlay" class="overlay-base" onclick="closeYearModal()">
-        <div class="glass p-8 rounded-3xl w-[400px] shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
-            <div class="flex items-center justify-between">
-                <button onclick="changeYear(-1)" class="p-2 hover:bg-white/10 rounded-lg"><i data-lucide="chevron-left"></i></button>
-                <h3 id="yearDisplay" class="text-2xl font-black text-blue-500">2026</h3>
-                <button onclick="changeYear(1)" class="p-2 hover:bg-white/10 rounded-lg"><i data-lucide="chevron-right"></i></button>
+    <!-- Mitarbeiter & Slider Modale -->
+    <div id="editEmpOverlay">
+        <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-bold text-center text-current">Mitarbeiter bearbeiten</h3>
+            <div class="flex flex-col gap-4 text-current">
+                <input type="text" id="editEmpNameInput" placeholder="Name" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none">
+                <input type="text" id="editEmpRoleInput" placeholder="Rolle" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none">
             </div>
-            <div class="grid grid-cols-3 gap-3" id="monthGrid"></div>
+            <div class="flex gap-2">
+                <button onclick="closeEditModal()" class="flex-1 py-3 rounded-xl bg-black/5 text-current">Abbrechen</button>
+                <button onclick="applyEditEmployee()" class="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold">Speichern</button>
+            </div>
+            <button onclick="confirmDeleteEmployee()" class="w-full py-3 border border-rose-500 text-rose-500 rounded-xl text-xs font-bold mt-2">Mitarbeiter entfernen</button>
+        </div>
+    </div>
+
+    <div id="modalOverlay">
+        <div class="glass p-8 rounded-3xl w-full md:w-80 shadow-2xl flex flex-col gap-6">
+            <h3 class="text-lg font-bold text-center text-current" id="modalTitle">Anpassung</h3>
+            <div class="flex flex-col gap-2 text-current">
+                <div class="flex justify-between text-xs font-mono">
+                    <span id="modalEmpName">Name</span>
+                    <span id="sliderValueText" class="text-blue-500 font-bold">100%</span>
+                </div>
+                <input type="range" id="statusSlider" min="0" max="250" step="1" value="100" oninput="updateSliderLabel()" class="w-full h-4 bg-black/10 rounded-lg appearance-none cursor-pointer accent-blue-600">
+            </div>
+            <div class="flex gap-2">
+                <button onclick="closeModal()" class="flex-1 py-3 rounded-xl bg-black/5 text-current">Abbrechen</button>
+                <button onclick="applySliderValue()" class="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold">Anwenden</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="addEmpOverlay">
+        <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-4 text-current">
+            <h3 class="text-lg font-bold text-center">Neuer Kollege</h3>
+            <div class="flex flex-col gap-3">
+                <input type="text" id="newEmpName" placeholder="Name, Vorname" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm">
+                <input type="text" id="newEmpRole" placeholder="Rolle (z.B. Fachkraft)" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm">
+                <input type="number" id="newEmpStatus" placeholder="Vz-Anteil (z.B. 100)" value="100" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm">
+            </div>
+            <div class="flex gap-2">
+                <button onclick="closeAddEmpOverlay()" class="flex-1 py-3 rounded-xl bg-black/5">Abbrechen</button>
+                <button onclick="addNewEmployee()" class="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-bold">Hinzufügen</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="shiftModalOverlay">
+        <div class="glass p-6 md:p-8 rounded-3xl w-full md:w-[500px] max-h-[90vh] shadow-2xl flex flex-col gap-6 overflow-hidden" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-black text-center text-current">Dienste konfigurieren</h3>
+            <div class="overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3" id="shiftTypeListContainer"></div>
+            <div class="border-t border-white/10 pt-4 flex flex-col gap-4 text-current">
+                <div class="grid grid-cols-3 gap-2">
+                    <input type="text" id="newShiftKey" placeholder="Kürzel" class="bg-black/5 border border-white/10 rounded-xl p-2 text-xs">
+                    <input type="text" id="newShiftLabel" placeholder="Bezeichnung" class="bg-black/5 border border-white/10 rounded-xl p-2 text-xs">
+                    <input type="number" step="0.1" id="newShiftHours" placeholder="Std" class="bg-black/5 border border-white/10 rounded-xl p-2 text-xs">
+                </div>
+                <button onclick="addShiftType()" class="w-full py-3 bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all">Dienstart hinzufügen</button>
+            </div>
+            <button onclick="closeShiftModal()" class="py-4 rounded-xl bg-blue-600 text-white font-bold">Speichern & Schließen</button>
+        </div>
+    </div>
+
+    <!-- Main Header -->
+    <div class="flex flex-col h-full w-full relative z-10 overflow-hidden">
+        <header class="glass m-2 md:m-4 p-3 md:p-4 rounded-2xl shadow-2xl no-print flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
+                        <i data-lucide="calendar" class="text-white" size="20"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-extrabold tracking-tight text-current leading-tight">Dienstplan <span class="text-blue-400 italic text-xs">PRO</span></h1>
+                        <p class="text-[9px] text-slate-500 uppercase font-bold tracking-wider" id="syncLabel">Station: Notaufnahme</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 no-print">
+                    <div class="hidden md:flex items-center gap-2 bg-black/5 px-4 py-2 rounded-xl border border-white/20">
+                        <button onclick="adjustZoom(-0.05)" class="p-1 hover:bg-black/10 rounded-lg text-slate-400"><i data-lucide="minus" size="14"></i></button>
+                        <input type="range" id="zoomSlider" min="0.5" max="1.5" step="0.05" value="1" oninput="adjustZoom(0)" class="w-24 h-1 bg-black/10 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                        <button onclick="adjustZoom(0.05)" class="p-1 hover:bg-black/10 rounded-lg text-slate-400"><i data-lucide="plus" size="14"></i></button>
+                        <span id="zoomText" class="text-[11px] font-black text-blue-500 min-w-[35px] ml-1">100%</span>
+                    </div>
+                    <button id="themeToggle" onclick="toggleTheme()" class="p-2 glass rounded-xl text-current transition-all">
+                        <i data-lucide="moon" id="themeIcon" size="18"></i>
+                    </button>
+                    <button id="saveBtn" onclick="saveData()" class="p-2 bg-blue-600 text-white rounded-xl shadow-lg transition-all active:scale-95">
+                        <i data-lucide="save" id="saveIcon" size="18"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar pb-1">
+                <div class="flex items-center gap-1 bg-black/5 p-1 rounded-xl border border-white/10 shrink-0">
+                    <button onclick="changeMonth(-1)" class="p-1.5 hover:bg-white/20 rounded-lg text-current"><i data-lucide="chevron-left" size="16"></i></button>
+                    <div id="monthLabel" onclick="openYearModal()" class="px-2 font-black text-[10px] md:text-sm min-w-[100px] text-center uppercase text-current whitespace-nowrap">Monat</div>
+                    <button onclick="changeMonth(1)" class="p-1.5 hover:bg-white/20 rounded-lg text-current"><i data-lucide="chevron-right" size="16"></i></button>
+                </div>
+
+                <div class="flex gap-1 shrink-0">
+                    <button onclick="openColumnModal()" class="p-2 glass rounded-xl text-current"><i data-lucide="settings-2" size="16"></i></button>
+                    <button onclick="openAddEmpOverlay()" class="p-2 bg-emerald-500/15 text-emerald-600 rounded-xl border border-emerald-500/20"><i data-lucide="user-plus" size="16"></i></button>
+                    <button id="toggleWarningBtn" onclick="toggleWarnings()" class="p-2 bg-rose-500/10 text-rose-600 rounded-xl border border-rose-500/20"><i data-lucide="alert-triangle" size="16"></i></button>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex flex-1 overflow-hidden relative mb-20 md:mb-0">
+            <aside id="mobileShiftContainer" class="fixed bottom-0 left-0 w-full z-[100] md:relative md:w-20 lg:w-48 p-2 md:p-0 no-print">
+                <div class="glass p-3 md:p-4 rounded-t-3xl md:rounded-2xl h-full flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-y-auto no-scrollbar">
+                    <div id="shiftPalette" class="flex flex-row md:flex-col gap-2 items-center"></div>
+                </div>
+            </aside>
+
+            <main class="flex-1 glass m-2 md:m-4 mt-0 rounded-2xl md:rounded-3xl overflow-hidden flex flex-col shadow-2xl relative">
+                <div class="overflow-x-auto overflow-y-auto flex-1 custom-scrollbar" id="tableContainer">
+                    <table class="w-full border-separate border-spacing-0" id="rosterTable">
+                        <thead id="tableHead"></thead>
+                        <tbody id="tableBody" class="divide-y divide-black/5"></tbody>
+                        <tfoot id="tableFoot" class="sticky bottom-0 z-40"></tfoot>
+                    </table>
+                </div>
+            </main>
         </div>
     </div>
 
     <script>
-        // --- State Management ---
+        // --- State ---
         let db, auth, user;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'notaufnahme-duisburg';
         
         let viewSettings = JSON.parse(localStorage.getItem('view_settings')) || { status: true, soll: true, ist: true, days: true, diff: true, prev: true, total: true };
-        let shiftCounterSettings = JSON.parse(localStorage.getItem('shift_counter_settings')) || { FD: true, SD: true, ND: true };
+        let shiftCounterSettings = JSON.parse(localStorage.getItem('shift_counter_settings')) || { FD: true, SD: true, ND: true, LT: false, U: false, K: false, FE: false };
         
-        let SHIFT_TYPES = JSON.parse(localStorage.getItem('helios_shifts')) || {
-            FD: { label: 'Früh', color: 'bg-cyan-500', textColor: 'text-white', hours: 7.7 },
-            SD: { label: 'Spät', color: 'bg-fuchsia-600', textColor: 'text-white', hours: 7.7 },
-            ZD: { label: 'Zwischen', color: 'bg-indigo-500', textColor: 'text-white', hours: 7.7 },
-            ND: { label: 'Nacht', color: 'bg-orange-600', textColor: 'text-white', hours: 9.5 },
-            LT: { label: 'Leitung', color: 'bg-emerald-500', textColor: 'text-white', hours: 7.7 },
-            U:  { label: 'Urlaub', color: 'bg-yellow-500', textColor: 'text-yellow-950', hours: 7.7 },
-            K:  { label: 'Krank', color: 'bg-rose-500', textColor: 'text-white', hours: 7.7 },
-            X:  { label: 'Frei', color: 'bg-white/5', textColor: 'text-slate-500', hours: 0 }
-        };
-
-        const DEFAULT_EMPLOYEES = [
+        let EMPLOYEES = JSON.parse(localStorage.getItem('helios_employees')) || [
             { id: '1', name: 'Adams, Hendrik', role: 'Stationsleitung', status: '100%', prevOvertime: 0 },
             { id: '2', name: 'Fuchsa, Jennifer', role: 'stellv. Leitung', status: '100%', prevOvertime: 0 },
             { id: '3', name: 'Günter, Stephanie', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
             { id: '4', name: 'Blank, Alexandra', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
             { id: '5', name: 'Friedrich, Kristina', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
-            { id: '6', name: 'Weienberg, Hanna', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
-            { id: '7', name: 'Hackmann, Matthias', role: 'Fachkraft', status: '90%', prevOvertime: 0 },
+            { id: '6', name: 'Weienberg, Hanna', role: 'Fachkraft', status: '100%', prevOvertime: 0 },
+            { id: '7', name: 'Hackmann, Matthias', role: 'Pflegekraft', status: '90%', prevOvertime: 0 },
             { id: '8', name: 'Buchmüller, Jörg', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
-            { id: '9', name: 'Rösken, Katrin', role: 'Pflegekraft', status: '100%', prevOvertime: 0 }
+            { id: '9', name: 'Rösken, Katrin', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '10', name: 'Theißen, Jennifer', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '11', name: 'Daniels, Justin', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '12', name: 'Kaymaz, Melda', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '13', name: 'Kühn, Philipp', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '14', name: 'Strachanski, Julia', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '15', name: 'Preußner, Pauline', role: 'Auszubildende', status: '100%', prevOvertime: 0 },
+            { id: '16', name: 'Bielok, Lara', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '17', name: 'Wüstkamp, Bianca', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '18', name: 'Bondzau, Martina', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
         ];
 
-        let EMPLOYEES = JSON.parse(localStorage.getItem('helios_employees')) || DEFAULT_EMPLOYEES;
+        let SHIFT_TYPES = JSON.parse(localStorage.getItem('helios_shifts')) || {
+            FD: { label: 'Frühdienst', color: 'bg-cyan-400/90', textColor: 'text-cyan-950', hours: 7.7 },
+            SD: { label: 'Spätdienst', color: 'bg-fuchsia-500/90', textColor: 'text-white', hours: 7.7 },
+            ZD: { label: 'Zwischendienst', color: 'bg-indigo-500/90', textColor: 'text-white', hours: 7.7 },
+            ND: { label: 'Nachtdienst', color: 'bg-orange-600/90', textColor: 'text-white', hours: 9.5 },
+            LT: { label: 'Leitungstag', color: 'bg-emerald-400/90', textColor: 'text-emerald-950', hours: 7.7 },
+            X:  { label: 'Frei', color: 'bg-white/10', textColor: 'text-slate-500', hours: 0 },
+            U:  { label: 'Urlaub', color: 'bg-yellow-400/90', textColor: 'text-yellow-950', hours: 7.7 },
+            K:  { label: 'Krank', color: 'bg-rose-500/90', textColor: 'text-white', hours: 7.7 }
+        };
+
         let roster = JSON.parse(localStorage.getItem('helios_roster')) || {};
         let rosterNotes = JSON.parse(localStorage.getItem('helios_roster_notes')) || {};
         
-        let currentDate = new Date(2026, 2, 1); // März 2026
+        let currentDate = new Date(2026, 3, 1);
         let activeShift = 'FD';
         let showWarnings = false;
+        let editingEmpIndex = null;
+        let editingField = 'status';
         let noteTarget = null;
 
-        // --- Firebase Integration (Strict Rule Implementation) ---
+        // --- Firebase Core Integration ---
         async function initFirebase() {
             if (typeof __firebase_config === 'undefined') return;
-            const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, getFirestore, onAuthStateChanged } = window.firebaseCore;
-            const config = JSON.parse(__firebase_config);
-            const app = initializeApp(config);
-            auth = getAuth(app);
-            db = getFirestore(app);
-            const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            const firebaseConfig = JSON.parse(__firebase_config);
+            const app = firebase.initializeApp(firebaseConfig);
+            auth = firebase.auth();
+            db = firebase.firestore();
             
+            const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
             try {
-                if (token) await signInWithCustomToken(auth, token);
-                else await signInAnonymously(auth);
+                if (token) await auth.signInWithCustomToken(token);
+                else await auth.signInAnonymously();
             } catch (e) { console.error("Auth failed", e); }
-
-            onAuthStateChanged(auth, (u) => {
+            
+            auth.onAuthStateChanged((u) => {
                 user = u;
                 if (user) {
-                    document.getElementById('syncLabel').innerText = `Sync: ${user.uid.substring(0,8)}`;
+                    document.getElementById('syncLabel').innerText = `Verbunden: ${user.uid.substring(0,6)}...`;
                     loadCloudData();
                 }
             });
@@ -287,198 +408,385 @@
 
         async function loadCloudData() {
             if (!user) return;
-            const { doc, getDoc } = window.firebaseCore;
-            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rosterPlan', 'main');
-            const snap = await getDoc(docRef);
-            if (snap.exists()) {
-                const data = snap.data();
-                if (data.employees) EMPLOYEES = data.employees;
-                if (data.roster) roster = data.roster;
-                if (data.rosterNotes) rosterNotes = data.rosterNotes;
-                if (data.shifts) SHIFT_TYPES = data.shifts;
-                renderRoster();
-            }
+            const docRef = db.doc(`artifacts/${appId}/public/data/rosterPlan/main`);
+            try {
+                const snap = await docRef.get();
+                if (snap.exists) {
+                    const data = snap.data();
+                    if (data.employees && data.employees.length > 0) EMPLOYEES = data.employees;
+                    if (data.roster) roster = data.roster;
+                    if (data.rosterNotes) rosterNotes = data.rosterNotes;
+                    if (data.shifts) SHIFT_TYPES = data.shifts;
+                    renderRoster();
+                    showToast("Cloud-Daten geladen", "cloud");
+                }
+            } catch (e) { console.error(e); }
         }
 
         async function saveData() {
-            const btn = document.getElementById('saveIcon');
-            btn.classList.add('animate-spin');
-            
             localStorage.setItem('helios_employees', JSON.stringify(EMPLOYEES));
+            localStorage.setItem('helios_shifts', JSON.stringify(SHIFT_TYPES));
             localStorage.setItem('helios_roster', JSON.stringify(roster));
             localStorage.setItem('helios_roster_notes', JSON.stringify(rosterNotes));
+            
+            const saveIcon = document.getElementById('saveIcon');
+            saveIcon.classList.add('animate-spin-fast');
 
             if (user && db) {
-                const { doc, setDoc, serverTimestamp } = window.firebaseCore;
-                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rosterPlan', 'main');
+                const docRef = db.doc(`artifacts/${appId}/public/data/rosterPlan/main`);
                 try {
-                    await setDoc(docRef, {
+                    await docRef.set({
                         employees: EMPLOYEES,
                         roster: roster,
                         rosterNotes: rosterNotes,
                         shifts: SHIFT_TYPES,
-                        updatedAt: serverTimestamp()
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                     }, { merge: true });
-                    showToast("In Cloud gesichert", "cloud-check");
-                } catch (e) { showToast("Cloud-Fehler", "alert-triangle"); }
+                    showToast("Cloud-Sync erfolgreich", "cloud-check");
+                } catch (e) { 
+                    showToast("Sync Fehler", "alert-circle");
+                    console.error(e); 
+                }
             } else {
-                showToast("Lokal gespeichert", "save");
+                showToast("Lokal gesichert", "save");
             }
-            setTimeout(() => btn.classList.remove('animate-spin'), 800);
+            setTimeout(() => saveIcon.classList.remove('animate-spin-fast'), 1000);
         }
 
-        // --- UI Rendering ---
+        // --- Core Logic ---
+        function getEasterSunday(year) {
+            const f = Math.floor, G = year % 19, C = f(year / 100), H = (C - f(C / 4) - f((8 * C + 13) / 25) + 19 * G + 15) % 30, I = H - f(H / 28) * (1 - f(29 / (H + 1)) * f((21 - G) / 11)), J = (year + f(year / 4) + I + 2 - C + f(C / 4)) % 7, L = I - J, month = 3 + f((L + 40) / 44), day = L + 28 - 31 * f(month / 4);
+            return new Date(year, month - 1, day);
+        }
+
+        function getHolidaysNRW(year) {
+            const easter = getEasterSunday(year);
+            const addDays = (date, days) => { const res = new Date(date); res.setDate(res.getDate() + days); return res.toISOString().split('T')[0]; };
+            return { [`${year}-01-01`]: "Neujahr", [addDays(easter, -2)]: "Karfreitag", [addDays(easter, 1)]: "Ostermontag", [`${year}-05-01`]: "Tag der Arbeit", [addDays(easter, 39)]: "Christi Himmelfahrt", [addDays(easter, 50)]: "Pfingsten", [addDays(easter, 60)]: "Fronleichnam", [`${year}-10-03`]: "Einheit", [`${year}-11-01`]: "Allerheiligen", [`${year}-12-25`]: "Weihnachten 1", [`${year}-12-26`]: "Weihnachten 2" };
+        }
+
+        function calculateWorkingDays(year, month) {
+            const holidays = getHolidaysNRW(year);
+            let count = 0; const d = new Date(year, month, 1);
+            while (d.getMonth() === month) {
+                const dayOfWeek = d.getDay(); const dateStr = d.toISOString().split('T')[0];
+                if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays[dateStr]) count++;
+                d.setDate(d.getDate() + 1);
+            }
+            return count;
+        }
+
         function renderRoster() {
             const year = currentDate.getFullYear(), month = currentDate.getMonth();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const days = Array.from({length: daysInMonth}, (_, i) => new Date(year, month, i + 1));
+            const days = []; const d = new Date(year, month, 1);
+            while (d.getMonth() === month) { days.push(new Date(d)); d.setDate(d.getDate() + 1); }
+            const holidays = getHolidaysNRW(year);
+            const workingDaysCount = calculateWorkingDays(year, month);
+            const monthTargetHours = workingDaysCount * 7.7;
             
             document.getElementById('monthLabel').innerText = currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' });
             
+            const dailyCounts = {};
+            days.forEach(day => {
+                const key = day.toISOString().split('T')[0];
+                dailyCounts[key] = {};
+                Object.keys(SHIFT_TYPES).forEach(s => dailyCounts[key][s] = 0);
+                EMPLOYEES.forEach(e => {
+                    const s = (roster[e.id] || {})[key];
+                    if (s && dailyCounts[key][s] !== undefined) dailyCounts[key][s]++;
+                });
+            });
+
             const head = document.getElementById('tableHead');
-            const hidden = (k) => viewSettings[k] ? '' : 'hidden-col';
-            
-            let headHTML = `<tr class="bg-[var(--table-header-bg)]">
-                <th class="p-4 text-left text-[10px] font-black sticky-left name-col-bg uppercase border-b border-white/10 w-[180px]">Mitarbeiter</th>
-                <th class="px-2 text-center text-[10px] font-black border-b border-white/10 ${hidden('status')}">VZ</th>
-                <th class="px-2 text-center text-[10px] font-black border-b border-white/10 ${hidden('soll')}">Soll</th>
-                <th class="px-2 text-center text-[10px] font-black border-b border-white/10 ${hidden('ist')}">Ist</th>
-                <th class="px-2 text-center text-[10px] font-black border-b border-white/10 text-emerald-500 ${hidden('diff')}">+/-</th>`;
+            const hidden = (key) => viewSettings[key] ? '' : 'hidden-col';
+            let headHTML = `<tr class="sticky top-0 z-40 bg-[var(--table-header-bg)] backdrop-blur-md">
+                <th class="p-3 text-left text-[10px] font-black border-b border-black/10 sticky-left name-col-bg uppercase text-current min-w-[140px]">KOLLEGE</th>
+                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-current ${hidden('status')}">VZ</th>
+                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-current ${hidden('soll')}">Soll</th>
+                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-current ${hidden('ist')}">Ist</th>
+                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-emerald-500 ${hidden('days')}">AT</th>
+                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-current ${hidden('diff')}">+/-</th>
+                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-blue-500 ${hidden('prev')}">Vmt</th>
+                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-orange-500 ${hidden('total')}">Ges</th>`;
             
             days.forEach(day => {
-                const isWE = day.getDay() === 0 || day.getDay() === 6;
-                headHTML += `<th class="p-2 border-b border-white/5 min-w-[45px] ${isWE ? 'weekend-cell' : ''}">
+                const key = day.toISOString().split('T')[0];
+                const isHoliday = !!holidays[key];
+                const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                const isWarn = showWarnings && (dailyCounts[key].FD < 2 || dailyCounts[key].SD < 2 || dailyCounts[key].ND < 2);
+                headHTML += `<th class="p-2 border-b border-black/5 min-w-[40px] ${isHoliday ? 'holiday-cell' : (isWeekend ? 'weekend-cell' : '')} ${isWarn ? 'warning-cell' : ''}">
                     <div class="flex flex-col items-center">
-                        <span class="text-[9px] uppercase font-black opacity-40">${day.toLocaleDateString('de-DE', { weekday: 'short' })}</span>
-                        <span class="text-sm font-black">${day.getDate()}</span>
+                        <span class="text-[8px] uppercase font-black text-slate-500">${day.toLocaleDateString('de-DE', { weekday: 'short' })}</span>
+                        <span class="text-xs font-black ${isHoliday ? 'text-orange-600' : 'text-slate-400'}">${day.getDate()}</span>
                     </div>
                 </th>`;
             });
             headHTML += `</tr>`;
             head.innerHTML = headHTML;
 
-            const body = document.getElementById('tableBody');
-            body.innerHTML = '';
-
+            const body = document.getElementById('tableBody'); body.innerHTML = '';
             EMPLOYEES.forEach((emp, idx) => {
                 const tr = document.createElement('tr');
-                tr.className = 'hover:bg-[var(--row-hover)] transition-colors group';
+                tr.className = 'group row-separator hover:bg-[var(--row-hover)] text-current';
+                let actualHours = 0; 
+                let actualWorkingDays = 0;
+                const empRoster = roster[emp.id] || {};
+                const empNotes = rosterNotes[emp.id] || {};
+                const empTarget = monthTargetHours * ((parseFloat(emp.status) || 100) / 100);
                 
-                let actual = 0, target = 160 * (parseInt(emp.status)/100); // Dummy target logic
                 let daysHTML = "";
-                
                 days.forEach(day => {
                     const key = day.toISOString().split('T')[0];
-                    const s = (roster[emp.id] || {})[key];
-                    const note = (rosterNotes[emp.id] || {})[key];
-                    if (s && SHIFT_TYPES[s]) actual += SHIFT_TYPES[s].hours;
+                    const s = empRoster[key];
+                    const note = empNotes[key];
+                    if (s && SHIFT_TYPES[s]) {
+                        actualHours += SHIFT_TYPES[s].hours;
+                        if (SHIFT_TYPES[s].hours > 0) actualWorkingDays++;
+                    }
+                    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                    const isWarn = showWarnings && (dailyCounts[key].FD < 2 || dailyCounts[key].SD < 2 || dailyCounts[key].ND < 2);
                     
-                    daysHTML += `<td onclick="handleCellClick('${emp.id}', '${key}', '${emp.name}')" class="p-1 border-r border-white/5 relative h-12 cursor-pointer ${day.getDay()===0||day.getDay()===6 ? 'weekend-cell' : ''}">
-                        <div class="h-full w-full rounded-lg flex flex-col items-center justify-center transition-all ${s ? `${SHIFT_TYPES[s].color} ${SHIFT_TYPES[s].textColor} shadow-md scale-90` : 'hover:bg-blue-500/10'}">
-                            <span class="text-[11px] font-black">${s || ''}</span>
-                            ${note ? `<div class="absolute top-1 right-1 w-1.5 h-1.5 bg-yellow-400 rounded-full"></div>` : ''}
+                    daysHTML += `<td onclick="handleCellClick('${emp.id}', '${key}', '${emp.name}')" class="p-0.5 cursor-pointer border-r border-black/5 relative ${holidays[key] ? 'holiday-cell' : (isWeekend ? 'weekend-cell' : '')} ${isWarn ? 'warning-cell' : ''}">
+                        <div class="h-8 w-full rounded-lg flex flex-col items-center justify-center transition-all ${s ? `${SHIFT_TYPES[s].color} ${SHIFT_TYPES[s].textColor} shadow-md scale-90` : 'hover:bg-blue-500/10'}">
+                            <span class="text-[10px] font-black leading-none">${s || ''}</span>
+                            ${note ? `<span class="text-[6px] opacity-70 font-bold truncate max-w-full px-1 leading-tight mt-0.5">${note}</span>` : ''}
                         </div>
                     </td>`;
                 });
 
-                tr.innerHTML = `<td class="p-4 sticky-left name-col-bg border-r border-white/5">
-                    <div class="font-bold text-sm tracking-tight">${emp.name}</div>
-                    <div class="text-[9px] text-slate-500 font-bold uppercase tracking-wider">${emp.role}</div>
+                const diff = actualHours - empTarget;
+                const totalÜ = diff + (parseFloat(emp.prevOvertime) || 0);
+
+                tr.innerHTML = `<td class="p-3 sticky-left name-col-bg border-r border-black/5 shadow-xl">
+                    <div class="font-black text-[11px] uppercase cursor-pointer hover:text-blue-500" onclick="openEditModal(${idx})">${emp.name}</div>
+                    <div class="text-[8px] text-slate-500 font-bold truncate uppercase">${emp.role}</div>
                 </td>
-                <td class="text-center text-xs font-bold text-slate-500 ${hidden('status')}">${emp.status}</td>
-                <td class="text-center text-xs font-mono opacity-50 ${hidden('soll')}">${target.toFixed(0)}</td>
-                <td class="text-center text-xs font-black ${hidden('ist')}">${actual.toFixed(0)}</td>
-                <td class="text-center text-xs font-black ${actual-target >= 0 ? 'text-emerald-500' : 'text-rose-500'} ${hidden('diff')}">${(actual-target).toFixed(0)}</td>
+                <td class="p-1 text-center text-[9px] font-bold text-slate-400 ${hidden('status')}" onclick="openSliderModal(${idx}, 'status')">${emp.status}</td>
+                <td class="p-1 text-center text-[9px] font-mono text-slate-400 ${hidden('soll')}">${empTarget.toFixed(0)}</td>
+                <td class="p-1 text-center text-[9px] font-black font-mono ${hidden('ist')}">${actualHours.toFixed(0)}</td>
+                <td class="p-1 text-center text-[9px] font-black font-mono text-emerald-500 ${hidden('days')}">${actualWorkingDays}</td>
+                <td class="p-1 text-center text-[9px] font-black font-mono ${diff >= 0 ? 'text-emerald-500' : 'text-rose-500'} ${hidden('diff')}">${diff.toFixed(0)}</td>
+                <td class="p-1 text-center text-[9px] font-black font-mono text-blue-500 ${hidden('prev')}" onclick="openSliderModal(${idx}, 'prevOvertime')">${emp.prevOvertime.toFixed(0)}</td>
+                <td class="p-1 text-center text-[9px] font-black font-mono ${totalÜ >= 0 ? 'text-orange-500' : 'text-rose-600'} ${hidden('total')}">${totalÜ.toFixed(0)}</td>
                 ${daysHTML}`;
                 body.appendChild(tr);
             });
-
+            renderTableFooter(days, dailyCounts, hidden);
             renderShiftPalette();
             lucide.createIcons();
         }
 
-        function renderShiftPalette() {
-            const c = document.getElementById('shiftPalette');
-            c.innerHTML = '';
-            
-            // Note Tool
-            const nt = document.createElement('button');
-            nt.className = `flex items-center gap-3 p-3 rounded-2xl border transition-all ${activeShift==='NOTE'?'bg-yellow-500/20 border-yellow-500 shadow-lg shadow-yellow-900/20':'bg-white/5 border-transparent hover:border-white/20'}`;
-            nt.onclick = () => { activeShift = 'NOTE'; renderShiftPalette(); };
-            nt.innerHTML = `<div class="w-10 h-10 rounded-xl bg-yellow-500 flex items-center justify-center text-white"><i data-lucide="sticky-note" size="18"></i></div>
-                           <div class="hidden lg:block text-left"><p class="text-[10px] font-black uppercase leading-none mb-1">Tool</p><p class="text-xs font-bold">Notiz</p></div>`;
-            c.appendChild(nt);
-
-            Object.entries(SHIFT_TYPES).forEach(([k, v]) => {
-                const b = document.createElement('button');
-                b.className = `flex items-center gap-3 p-3 rounded-2xl border transition-all ${activeShift===k?'bg-blue-600/20 border-blue-600 shadow-lg shadow-blue-900/20':'bg-white/5 border-transparent hover:border-white/20'}`;
-                b.onclick = () => { activeShift = k; renderShiftPalette(); };
-                b.innerHTML = `<div class="w-10 h-10 rounded-xl ${v.color} ${v.textColor} flex items-center justify-center font-black text-sm shadow-inner">${k}</div>
-                               <div class="hidden lg:block text-left"><p class="text-[10px] font-black opacity-40 leading-none mb-1">${v.hours}h</p><p class="text-xs font-bold">${v.label}</p></div>`;
-                c.appendChild(b);
+        function renderTableFooter(days, dailyCounts, hidden) {
+            const foot = document.getElementById('tableFoot');
+            let footHTML = "";
+            const activeCounters = Object.keys(shiftCounterSettings).filter(s => shiftCounterSettings[s]);
+            activeCounters.forEach((sCode, sIdx) => {
+                const sInfo = SHIFT_TYPES[sCode];
+                footHTML += `<tr class="bg-[var(--bg-color)]/90 backdrop-blur-sm ${sIdx === 0 ? 'border-t-2 border-blue-500/30' : ''} text-[9px] font-black text-current">
+                    <td class="p-2 sticky-left name-col-bg border-r border-black/5 flex items-center gap-2">
+                        <div class="w-4 h-4 rounded ${sInfo.color} flex items-center justify-center text-[8px] ${sInfo.textColor}">${sCode}</div>
+                        <span class="text-[8px] uppercase tracking-tighter opacity-70 truncate">${sInfo.label}</span>
+                    </td>
+                    <td colspan="7" class="p-2 border-r border-black/5 text-right opacity-50 ${hidden('status') && hidden('soll') && hidden('ist') && hidden('days') && hidden('diff') && hidden('prev') && hidden('total') ? 'hidden' : ''}">Summe:</td>`;
+                days.forEach(day => {
+                    const key = day.toISOString().split('T')[0];
+                    const count = dailyCounts[key][sCode] || 0;
+                    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                    footHTML += `<td class="p-1 text-center border-r border-black/5 ${isWeekend ? 'weekend-cell' : ''} ${count < 2 && (sCode==='FD'||sCode==='SD'||sCode==='ND') ? 'text-rose-500 underline' : ''}">${count}</td>`;
+                });
+                footHTML += `</tr>`;
             });
-            lucide.createIcons();
+            foot.innerHTML = footHTML;
         }
 
+        // --- Interaction Handlers ---
         function handleCellClick(empId, dateKey, empName) {
             if (activeShift === 'NOTE') openNoteModal(empId, dateKey, empName);
-            else {
-                if (!roster[empId]) roster[empId] = {};
-                roster[empId][dateKey] = (roster[empId][dateKey] === activeShift) ? null : activeShift;
-                renderRoster();
-            }
+            else toggleShift(empId, dateKey);
         }
+
+        function toggleShift(id, k) { if (!roster[id]) roster[id] = {}; roster[id][k] = (roster[id][k] === activeShift) ? null : activeShift; renderRoster(); }
 
         function openNoteModal(empId, dateKey, empName) {
             noteTarget = { empId, dateKey };
-            const existing = (rosterNotes[empId] || {})[dateKey] || "";
-            document.getElementById('noteContext').innerText = `${empName} | ${new Date(dateKey).toLocaleDateString('de-DE')}`;
-            document.getElementById('noteInput').value = existing;
+            const currentNote = (rosterNotes[empId] || {})[dateKey] || "";
+            const d = new Date(dateKey);
+            document.getElementById('noteContext').innerText = `${empName} | ${d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}`;
+            document.getElementById('noteInput').value = currentNote;
             document.getElementById('noteModalOverlay').style.display = 'flex';
+            setTimeout(() => document.getElementById('noteInput').focus(), 100);
         }
+
+        function closeNoteModal() { document.getElementById('noteModalOverlay').style.display = 'none'; noteTarget = null; }
 
         function saveNote() {
             if (!noteTarget) return;
-            const val = document.getElementById('noteInput').value.trim();
+            const text = document.getElementById('noteInput').value.trim();
             if (!rosterNotes[noteTarget.empId]) rosterNotes[noteTarget.empId] = {};
-            if (val === "") delete rosterNotes[noteTarget.empId][noteTarget.dateKey];
-            else rosterNotes[noteTarget.empId][noteTarget.dateKey] = val;
+            if (text === "") delete rosterNotes[noteTarget.empId][noteTarget.dateKey];
+            else rosterNotes[noteTarget.empId][noteTarget.dateKey] = text;
             renderRoster();
             closeNoteModal();
             saveData();
+            showToast("Notiz gespeichert", "sticky-note");
         }
 
-        function showToast(msg, icon) {
+        function adjustZoom(delta) {
+            const slider = document.getElementById('zoomSlider');
+            let val = delta === 0 ? parseFloat(slider.value) : parseFloat(slider.value) + delta;
+            val = Math.max(0.5, Math.min(1.5, val));
+            slider.value = val;
+            document.documentElement.style.setProperty('--zoom-factor', val);
+            document.getElementById('zoomText').innerText = Math.round(val * 100) + '%';
+        }
+
+        function openSliderModal(i, f) { 
+            editingEmpIndex = i; editingField = f; const emp = EMPLOYEES[i]; 
+            document.getElementById('modalEmpName').innerText = emp.name;
+            const s = document.getElementById('statusSlider');
+            if(f === 'prevOvertime') { document.getElementById('modalTitle').innerText = 'Überstunden Vmt'; s.min = "-100"; s.max = "200"; s.value = emp.prevOvertime; }
+            else { document.getElementById('modalTitle').innerText = 'Beschäftigung'; s.min = "0"; s.max = "200"; s.value = parseInt(emp.status); }
+            updateSliderLabel(); document.getElementById('modalOverlay').style.display = 'flex';
+        }
+        function updateSliderLabel() { const val = document.getElementById('statusSlider').value; document.getElementById('sliderValueText').innerText = val + (editingField==='prevOvertime'?'h':'%'); }
+        function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
+        function applySliderValue() { 
+            const v = document.getElementById('statusSlider').value;
+            if(editingField === 'prevOvertime') EMPLOYEES[editingEmpIndex].prevOvertime = parseFloat(v);
+            else EMPLOYEES[editingEmpIndex].status = v + '%';
+            renderRoster(); closeModal(); saveData();
+        }
+
+        // --- Export / Import ---
+        function exportData() {
+            const data = { employees: EMPLOYEES, roster: roster, rosterNotes: rosterNotes, shifts: SHIFT_TYPES, version: "1.1" };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `helios_roster_backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            showToast("Backup heruntergeladen", "download");
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.employees && data.roster) {
+                        EMPLOYEES = data.employees;
+                        roster = data.roster;
+                        rosterNotes = data.rosterNotes || {};
+                        if (data.shifts) SHIFT_TYPES = data.shifts;
+                        renderRoster();
+                        saveData();
+                        showToast("Daten importiert", "check-circle");
+                    }
+                } catch (err) { showToast("Import Fehler", "alert-triangle"); }
+            };
+            reader.readAsText(file);
+        }
+
+        function showToast(msg, iconName) {
             const t = document.getElementById('toast');
-            document.getElementById('toastMessage').innerText = msg;
-            document.getElementById('toastIcon').innerHTML = `<i data-lucide="${icon}"></i>`;
+            const m = document.getElementById('toastMessage');
+            const i = document.getElementById('toastIcon');
+            m.innerText = msg;
+            i.innerHTML = `<i data-lucide="${iconName}" size="18"></i>`;
             lucide.createIcons();
-            t.style.display = 'block';
+            t.style.display = 'flex';
             setTimeout(() => t.style.display = 'none', 3000);
         }
 
-        // --- Helpers & Modals ---
-        function closeNoteModal() { document.getElementById('noteModalOverlay').style.display = 'none'; }
-        function openColumnModal() { 
-            const list = document.getElementById('columnToggleList'); list.innerHTML = '';
-            Object.keys(viewSettings).forEach(k => {
-                const row = document.createElement('div');
-                row.className = "flex items-center justify-between p-3 bg-white/5 rounded-xl";
-                row.innerHTML = `<span class="text-xs font-bold uppercase">${k}</span><button onclick="toggleCol('${k}')" class="w-10 h-5 rounded-full relative transition-all ${viewSettings[k] ? 'bg-blue-600' : 'bg-white/10'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${viewSettings[k] ? 'right-1' : 'left-1'}"></div></button>`;
-                list.appendChild(row);
+        // --- UI Modal Handlers ---
+        function toggleColumn(key) { viewSettings[key] = !viewSettings[key]; localStorage.setItem('view_settings', JSON.stringify(viewSettings)); openColumnModal(); renderRoster(); }
+        function toggleShiftCounter(key) { shiftCounterSettings[key] = !shiftCounterSettings[key]; localStorage.setItem('shift_counter_settings', JSON.stringify(shiftCounterSettings)); openColumnModal(); renderRoster(); }
+        function openColumnModal() {
+            const colList = document.getElementById('columnToggleList'); colList.innerHTML = '';
+            const colLabels = { status: 'Anteil', soll: 'Soll', ist: 'Ist', days: 'Arbeitstage', diff: '+/-', prev: 'Vormt', total: 'Gesamt' };
+            Object.keys(viewSettings).forEach(key => {
+                const div = document.createElement('div'); div.className = "flex items-center justify-between p-2 bg-black/5 rounded-xl";
+                div.innerHTML = `<span class="text-[11px] font-bold text-current">${colLabels[key]}</span><button onclick="toggleColumn('${key}')" class="w-10 h-5 rounded-full relative transition-all ${viewSettings[key] ? 'bg-blue-600' : 'bg-slate-300'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${viewSettings[key] ? 'right-1' : 'left-1'}"></div></button>`;
+                colList.appendChild(div);
             });
-            document.getElementById('columnOverlay').style.display = 'flex'; 
+            const shiftList = document.getElementById('shiftToggleList'); shiftList.innerHTML = '';
+            Object.keys(SHIFT_TYPES).forEach(key => {
+                if(key === 'X') return;
+                const btn = document.createElement('button');
+                btn.onclick = () => toggleShiftCounter(key);
+                btn.className = `px-3 py-1.5 rounded-xl text-[9px] font-black border transition-all ${shiftCounterSettings[key] ? 'bg-blue-600 text-white border-blue-500' : 'bg-black/5 border-white/5 text-slate-500'}`;
+                btn.innerText = key;
+                shiftList.appendChild(btn);
+            });
+            document.getElementById('columnOverlay').style.display = 'flex';
         }
-        function toggleCol(k) { viewSettings[k] = !viewSettings[k]; localStorage.setItem('view_settings', JSON.stringify(viewSettings)); openColumnModal(); renderRoster(); }
         function closeColumnModal() { document.getElementById('columnOverlay').style.display = 'none'; }
+        
         function changeMonth(o) { currentDate.setMonth(currentDate.getMonth() + o); renderRoster(); }
-        function toggleTheme() { document.body.classList.toggle('light-mode'); }
-        function toggleWarnings() { showWarnings = !showWarnings; document.getElementById('warningBtn').classList.toggle('bg-rose-500'); renderRoster(); }
+        function toggleTheme() { let mode = document.body.classList.toggle('light-mode'); localStorage.setItem('theme', mode ? 'light' : 'dark'); renderRoster(); }
+        function toggleWarnings() { showWarnings = !showWarnings; document.getElementById('toggleWarningBtn').classList.toggle('bg-rose-500', showWarnings); renderRoster(); }
+        function openYearModal() { document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); document.getElementById('yearViewOverlay').style.display = 'flex'; }
+        function closeYearModal() { document.getElementById('yearViewOverlay').style.display = 'none'; }
+        function renderMonthGrid() { const container = document.getElementById('monthGrid'); container.innerHTML = ''; const months = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]; months.forEach((m, i) => { const btn = document.createElement('button'); const isCurrent = currentDate.getMonth() === i; btn.className = `p-3 rounded-xl text-[9px] font-black uppercase transition-all border ${isCurrent ? 'bg-blue-600 text-white' : 'bg-black/5 text-current'}`; btn.innerText = m; btn.onclick = () => { currentDate.setMonth(i); renderRoster(); closeYearModal(); }; container.appendChild(btn); }); }
+        function changeYear(o) { currentDate.setFullYear(currentDate.getFullYear() + o); document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); }
+        
+        function openShiftModal() { renderShiftTypeList(); document.getElementById('shiftModalOverlay').style.display = 'flex'; }
+        function closeShiftModal() { document.getElementById('shiftModalOverlay').style.display = 'none'; renderRoster(); saveData(); }
+        function renderShiftTypeList() {
+            const c = document.getElementById('shiftTypeListContainer'); c.innerHTML = '';
+            Object.entries(SHIFT_TYPES).forEach(([k, v]) => {
+                const d = document.createElement('div'); d.className = "flex items-center gap-2 bg-black/5 p-2 rounded-xl border border-white/5";
+                d.innerHTML = `<div class="w-8 h-8 rounded-lg ${v.color} flex items-center justify-center font-black ${v.textColor}">${k}</div><input type="text" value="${v.label}" onchange="SHIFT_TYPES['${k}'].label=this.value" class="flex-1 bg-transparent text-[11px] font-bold text-current"><input type="number" step="0.1" value="${v.hours}" onchange="SHIFT_TYPES['${k}'].hours=parseFloat(this.value)" class="w-12 bg-black/10 rounded-lg text-center text-[11px] text-current"><button onclick="delete SHIFT_TYPES['${k}']; renderShiftTypeList()" class="p-1 text-rose-500"><i data-lucide="trash-2" size="12"></i></button>`;
+                c.appendChild(d);
+            });
+            lucide.createIcons();
+        }
+        function addShiftType() {
+            const k = document.getElementById('newShiftKey').value.toUpperCase().trim(); const l = document.getElementById('newShiftLabel').value; const h = parseFloat(document.getElementById('newShiftHours').value);
+            if(!k || SHIFT_TYPES[k]) return;
+            SHIFT_TYPES[k] = { label: l||k, hours: h||0, color: 'bg-blue-500', textColor: 'text-white' }; 
+            renderShiftTypeList();
+            document.getElementById('newShiftKey').value = ''; document.getElementById('newShiftLabel').value = ''; document.getElementById('newShiftHours').value = '';
+        }
 
-        window.onload = () => {
-            initFirebase();
+        function renderShiftPalette() { 
+            const c = document.getElementById('shiftPalette'); c.innerHTML = ''; 
+            const noteBtn = document.createElement('button');
+            noteBtn.className = `flex shrink-0 items-center gap-2 p-1 md:p-2 rounded-xl border transition-all ${activeShift==='NOTE'?'bg-yellow-500/20 border-yellow-500':'bg-black/5 border-white/5'}`;
+            noteBtn.onclick = () => { activeShift = 'NOTE'; renderShiftPalette(); };
+            noteBtn.innerHTML = `<div class="w-8 h-8 rounded-lg bg-yellow-500 flex items-center justify-center font-black text-white shadow-md"><i data-lucide="sticky-note" size="14"></i></div><span class="text-[9px] font-bold uppercase hidden lg:block text-current">Notiz</span>`;
+            c.appendChild(noteBtn);
+            Object.entries(SHIFT_TYPES).forEach(([k, v]) => { 
+                const b = document.createElement('button'); 
+                b.className = `flex shrink-0 items-center gap-2 p-1 md:p-2 rounded-xl border transition-all ${activeShift===k?'bg-blue-500/20 border-blue-500':'bg-black/5 border-white/5'}`; 
+                b.onclick = () => { activeShift = k; renderShiftPalette(); }; 
+                b.innerHTML = `<div class="w-8 h-8 rounded-lg ${v.color} flex items-center justify-center font-black ${v.textColor} shadow-md">${k}</div><span class="text-[9px] font-bold uppercase hidden lg:block text-current">${v.label}</span>`; 
+                c.appendChild(b); 
+            }); 
+            lucide.createIcons();
+        }
+
+        window.onload = async () => {
+            if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
             renderRoster();
+            await initFirebase();
         };
+
+        // --- Standard Employee Modals ---
+        function openEditModal(i) { editingEmpIndex = i; const emp = EMPLOYEES[i]; document.getElementById('editEmpNameInput').value = emp.name; document.getElementById('editEmpRoleInput').value = emp.role; document.getElementById('editEmpOverlay').style.display = 'flex'; }
+        function closeEditModal() { document.getElementById('editEmpOverlay').style.display = 'none'; }
+        function applyEditEmployee() { if(editingEmpIndex !== null) { EMPLOYEES[editingEmpIndex].name = document.getElementById('editEmpNameInput').value; EMPLOYEES[editingEmpIndex].role = document.getElementById('editEmpRoleInput').value; renderRoster(); closeEditModal(); saveData(); } }
+        function confirmDeleteEmployee() { if(editingEmpIndex !== null && confirm('Soll dieser Kollege wirklich entfernt werden?')) { EMPLOYEES.splice(editingEmpIndex, 1); renderRoster(); closeEditModal(); saveData(); } }
+        function openAddEmpOverlay() { document.getElementById('addEmpOverlay').style.display = 'flex'; }
+        function closeAddEmpOverlay() { document.getElementById('addEmpOverlay').style.display = 'none'; }
+        function addNewEmployee() {
+            const n = document.getElementById('newEmpName').value; const r = document.getElementById('newEmpRole').value; const s = document.getElementById('newEmpStatus').value + '%';
+            if(!n) return; EMPLOYEES.push({ id: Date.now().toString(), name: n, role: r || "Pflegekraft", status: s, prevOvertime: 0 });
+            renderRoster(); closeAddEmpOverlay(); saveData();
+        }
     </script>
 </body>
 </html>
