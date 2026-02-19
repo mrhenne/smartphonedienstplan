@@ -190,6 +190,7 @@
         </div>
     </div>
 
+    <!-- Notiz Modal -->
     <div id="noteModalOverlay">
         <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
             <h3 class="text-lg font-black text-center text-current flex items-center justify-center gap-2">
@@ -233,9 +234,6 @@
                 <div id="headerWorkingDays" class="px-3 py-2 bg-blue-500/10 text-blue-400 text-[10px] font-black rounded-xl border border-blue-500/20 hidden md:block shrink-0">
                     -- Arbeitstage
                 </div>
-
-                <!-- Vertical Divider -->
-                <div class="w-px h-6 bg-white/10 mx-1 hidden sm:block shrink-0"></div>
 
                 <!-- Action Group -->
                 <div class="flex items-center gap-1 shrink-0">
@@ -370,17 +368,25 @@
         let editingField = 'status';
         let noteTarget = null;
 
-        // --- Firebase Core (Safe GitHub Integration) ---
+        // --- Firebase Core (Safe Device Sync) ---
         async function initFirebase() {
-            if (!window.firebaseCore) return;
+            if (!window.firebaseCore) {
+                console.warn("Cloud Sync nicht verfügbar (Kein Firebase SDK)");
+                return;
+            }
             const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, getFirestore, onAuthStateChanged } = window.firebaseCore;
             const configStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
-            if (!configStr) return;
+            if (!configStr) {
+                console.warn("Cloud Sync nicht verfügbar (Keine Config)");
+                return;
+            }
 
             try {
                 const app = initializeApp(JSON.parse(configStr));
                 auth = getAuth(app);
                 db = getFirestore(app);
+                
+                // Authentifizierung VOR der ersten Abfrage
                 const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
                 if (token) await signInWithCustomToken(auth, token);
                 else await signInAnonymously(auth);
@@ -388,34 +394,40 @@
                 onAuthStateChanged(auth, (u) => {
                     user = u;
                     if (user) {
-                        document.getElementById('syncLabel').innerText = `Helios Homberg | Sync`; loadCloudData();
+                        document.getElementById('syncLabel').innerText = `Helios Homberg | Online`;
+                        loadCloudData();
                     }
                 });
-            } catch (e) { console.error("Firebase init failed", e); }
+            } catch (e) { console.error("Firebase Fehler:", e); }
         }
 
         async function loadCloudData() {
             if (!user || !db) return;
             const { doc, getDoc } = window.firebaseCore;
+            // Regel 1: Pfad strikt einhalten
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rosterPlan', 'main');
             try {
                 const snap = await getDoc(docRef);
                 if (snap.exists()) {
                     const data = snap.data();
+                    // Sicherheit: Nur überschreiben, wenn Daten vorhanden
                     if (data.employees && data.employees.length > 0) EMPLOYEES = data.employees;
                     if (data.roster) roster = data.roster;
                     if (data.rosterNotes) rosterNotes = data.rosterNotes;
                     if (data.shifts) SHIFT_TYPES = data.shifts;
+                    
                     renderRoster();
-                    showToast("Cloud-Daten geladen", "cloud");
+                    showToast("Cloud-Synchronisation abgeschlossen", "cloud");
                 }
-            } catch (e) { console.error("Cloud load failed", e); }
+            } catch (e) { console.error("Cloud-Laden fehlgeschlagen:", e); }
         }
 
         async function saveData() {
+            // Lokal sichern als Backup
             localStorage.setItem('helios_employees', JSON.stringify(EMPLOYEES));
             localStorage.setItem('helios_roster', JSON.stringify(roster));
             localStorage.setItem('helios_roster_notes', JSON.stringify(rosterNotes));
+            
             const saveIcon = document.getElementById('saveIcon');
             saveIcon.classList.add('animate-spin-fast');
 
@@ -423,10 +435,21 @@
                 const { doc, setDoc, serverTimestamp } = window.firebaseCore;
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rosterPlan', 'main');
                 try {
-                    await setDoc(docRef, { employees: EMPLOYEES, roster: roster, rosterNotes: rosterNotes, shifts: SHIFT_TYPES, updatedAt: serverTimestamp() }, { merge: true });
-                    showToast("Sync erfolgreich", "cloud-check");
-                } catch (e) { showToast("Sync Fehler", "alert-circle"); }
-            } else { showToast("Lokal gesichert", "save"); }
+                    await setDoc(docRef, { 
+                        employees: EMPLOYEES, 
+                        roster: roster, 
+                        rosterNotes: rosterNotes, 
+                        shifts: SHIFT_TYPES, 
+                        updatedAt: serverTimestamp() 
+                    }, { merge: true });
+                    showToast("Daten in Cloud gesichert", "cloud-check");
+                } catch (e) { 
+                    showToast("Sync fehlgeschlagen", "alert-triangle"); 
+                    console.error(e);
+                }
+            } else { 
+                showToast("Lokal gespeichert", "save"); 
+            }
             setTimeout(() => saveIcon.classList.remove('animate-spin-fast'), 800);
         }
 
@@ -545,7 +568,11 @@
         // --- Interaction Handlers ---
         function handleCellClick(empId, dateKey, empName) {
             if (activeShift === 'NOTE') openNoteModal(empId, dateKey, empName);
-            else { if (!roster[empId]) roster[empId] = {}; roster[empId][dateKey] = (roster[empId][dateKey] === activeShift) ? null : activeShift; renderRoster(); }
+            else { 
+                if (!roster[empId]) roster[empId] = {}; 
+                roster[empId][dateKey] = (roster[empId][dateKey] === activeShift) ? null : activeShift; 
+                renderRoster(); 
+            }
         }
 
         function openNoteModal(empId, dateKey, empName) {
@@ -564,7 +591,15 @@
 
         function changeMonth(o) { currentDate.setMonth(currentDate.getMonth() + o); renderRoster(); }
         function toggleTheme() { document.body.classList.toggle('light-mode'); localStorage.setItem('theme', document.body.classList.contains('light-mode')?'light':'dark'); }
-        function showToast(m, i) { const t = document.getElementById('toast'); document.getElementById('toastMessage').innerText = m; t.style.display = 'flex'; setTimeout(()=>t.style.display='none', 2000); }
+        function showToast(m, i) { 
+            const t = document.getElementById('toast'); 
+            document.getElementById('toastMessage').innerText = m; 
+            const iconEl = document.getElementById('toastIcon');
+            iconEl.innerHTML = `<i data-lucide="${i}"></i>`;
+            lucide.createIcons();
+            t.style.display = 'flex'; 
+            setTimeout(()=>t.style.display='none', 3000); 
+        }
 
         function openEditModal(i) { editingEmpIndex = i; const e = EMPLOYEES[i]; document.getElementById('editEmpNameInput').value = e.name; document.getElementById('editEmpRoleInput').value = e.role; document.getElementById('editEmpOverlay').style.display = 'flex'; }
         function closeEditModal() { document.getElementById('editEmpOverlay').style.display = 'none'; }
@@ -579,16 +614,6 @@
         function openAddEmpOverlay() { document.getElementById('addEmpOverlay').style.display = 'flex'; }
         function closeAddEmpOverlay() { document.getElementById('addEmpOverlay').style.display = 'none'; }
         function addNewEmployee() { const n = document.getElementById('newEmpName').value; if(!n) return; EMPLOYEES.push({ id: Date.now().toString(), name: n, role: document.getElementById('newEmpRole').value || 'Pflege', status: document.getElementById('newEmpStatus').value+'%', prevOvertime: 0 }); renderRoster(); closeAddEmpOverlay(); saveData(); }
-
-        function adjustZoom(delta) {
-            const slider = document.getElementById('zoomSlider');
-            if(!slider) return;
-            let val = delta === 0 ? parseFloat(slider.value) : parseFloat(slider.value) + delta;
-            val = Math.max(0.5, Math.min(1.5, val));
-            slider.value = val;
-            document.documentElement.style.setProperty('--zoom-factor', val);
-            document.getElementById('zoomText').innerText = Math.round(val * 100) + '%';
-        }
 
         // --- Modale & Settings Functions ---
         function openColumnModal() {
@@ -647,19 +672,21 @@
         function toggleWarnings() { showWarnings = !showWarnings; document.getElementById('toggleWarningBtn').classList.toggle('bg-rose-500/20', showWarnings); renderRoster(); }
 
         function renderShiftPalette() {
-            const c = document.getElementById('shiftPalette'); c.innerHTML = `<button onclick="activeShift='NOTE'; renderShiftPalette()" class="flex shrink-0 items-center gap-2 p-2 rounded-xl border ${activeShift==='NOTE'?'bg-yellow-500/20 border-yellow-500':'bg-black/5 border-white/5'}"><div class="w-8 h-8 rounded-lg bg-yellow-500 flex items-center justify-center"><i data-lucide="sticky-note" size="14"></i></div></button>`;
+            const c = document.getElementById('shiftPalette'); c.innerHTML = `<button onclick="activeShift='NOTE'; renderShiftPalette()" class="flex shrink-0 items-center gap-2 p-1.5 rounded-xl border transition-all ${activeShift==='NOTE'?'bg-yellow-500/20 border-yellow-500':'bg-black/5 border-white/5'}"><div class="w-8 h-8 rounded-lg bg-yellow-500 flex items-center justify-center shadow-md"><i data-lucide="sticky-note" size="14"></i></div></button>`;
             Object.entries(SHIFT_TYPES).forEach(([k, v]) => {
                 const b = document.createElement('button'); b.onclick = () => { activeShift = k; renderShiftPalette(); };
-                b.className = `flex shrink-0 items-center gap-2 p-2 rounded-xl border ${activeShift===k?'bg-blue-500/20 border-blue-500':'bg-black/5 border-white/5'}`;
-                b.innerHTML = `<div class="w-8 h-8 rounded-lg ${v.color} flex items-center justify-center font-black ${v.textColor}">${k}</div>`;
+                b.className = `flex shrink-0 items-center gap-2 p-1.5 rounded-xl border transition-all ${activeShift===k?'bg-blue-500/20 border-blue-500':'bg-black/5 border-white/5'}`;
+                b.innerHTML = `<div class="w-8 h-8 rounded-lg ${v.color} flex items-center justify-center font-black ${v.textColor} shadow-md">${k}</div>`;
                 c.appendChild(b);
             }); lucide.createIcons();
         }
 
         window.onload = async () => {
             if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
-            renderRoster(); await initFirebase();
-            // Globale Funktionen für Modale registrieren (für onclick im HTML)
+            renderRoster(); 
+            await initFirebase();
+            
+            // Globale Funktionen für Modale registrieren
             window.openColumnModal = openColumnModal;
             window.closeColumnModal = closeColumnModal;
             window.openShiftModal = openShiftModal;
