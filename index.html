@@ -119,15 +119,15 @@
             z-index: 40;
         }
 
+        /* Marker für Notizen */
         .note-marker {
             position: absolute;
             top: 2px;
             right: 2px;
-            width: 5px;
-            height: 5px;
-            background-color: #eab308;
+            width: 4px;
+            height: 4px;
+            background-color: #fbbf24;
             border-radius: 50%;
-            box-shadow: 0 0 4px #eab308;
         }
 
         @media (max-width: 768px) {
@@ -348,11 +348,9 @@
         let db, auth, user;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'notaufnahme-duisburg';
         
-        // Globale Daten
         let viewSettings = JSON.parse(localStorage.getItem('view_settings')) || { status: true, soll: true, ist: true, days: true, diff: true, prev: true, total: true };
         let shiftCounterSettings = JSON.parse(localStorage.getItem('shift_counter_settings')) || { FD: true, SD: true, ND: true, LT: false, U: false, K: false, FE: false };
         
-        // Vollständige Liste der Kollegen
         const DEFAULT_EMPLOYEES = [
             { id: '1', name: 'Adams, Hendrik', role: 'Stationsleitung', status: '100%', prevOvertime: 0 },
             { id: '2', name: 'Fuchsa, Jennifer', role: 'stellv. Leitung', status: '100%', prevOvertime: 0 },
@@ -387,31 +385,28 @@
 
         let EMPLOYEES = JSON.parse(localStorage.getItem('helios_employees')) || DEFAULT_EMPLOYEES;
         let roster = JSON.parse(localStorage.getItem('helios_roster')) || {};
-        let rosterNotes = JSON.parse(localStorage.getItem('helios_roster_notes')) || {}; // NEU: Notizen Speicher
+        let rosterNotes = JSON.parse(localStorage.getItem('helios_roster_notes')) || {};
         
         let currentDate = new Date(2026, 3, 1);
         let activeShift = 'FD';
         let showWarnings = false;
         let editingEmpIndex = null;
         let editingField = 'status';
-        let noteTarget = null; // { empId, dateKey }
+        let noteTarget = null;
 
         // --- Firebase & Auth ---
         async function initFirebase() {
             if (typeof __firebase_config === 'undefined') return;
             const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, getFirestore, onAuthStateChanged } = window.firebaseCore;
-            
             const config = JSON.parse(__firebase_config);
             const app = initializeApp(config);
             auth = getAuth(app);
             db = getFirestore(app);
-
             const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
             try {
                 if (token) await signInWithCustomToken(auth, token);
                 else await signInAnonymously(auth);
             } catch (e) { console.error("Auth failed", e); }
-
             onAuthStateChanged(auth, (u) => {
                 user = u;
                 if (user) {
@@ -444,10 +439,8 @@
             localStorage.setItem('helios_shifts', JSON.stringify(SHIFT_TYPES));
             localStorage.setItem('helios_roster', JSON.stringify(roster));
             localStorage.setItem('helios_roster_notes', JSON.stringify(rosterNotes));
-
             const saveIcon = document.getElementById('saveIcon');
             saveIcon.classList.add('animate-spin-fast');
-
             if (user && db) {
                 const { doc, setDoc, serverTimestamp } = window.firebaseCore;
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rosterPlan', 'main');
@@ -467,11 +460,42 @@
             } else {
                 showToast("Lokal gesichert", "save");
             }
-
             setTimeout(() => saveIcon.classList.remove('animate-spin-fast'), 1000);
         }
 
-        // --- UI Utils ---
+        // --- Export / Import ---
+        function exportData() {
+            const data = { employees: EMPLOYEES, roster: roster, rosterNotes: rosterNotes, shifts: SHIFT_TYPES, version: "1.1" };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `dienstplan_backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            showToast("Backup erstellt", "download");
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.employees && data.roster) {
+                        EMPLOYEES = data.employees;
+                        roster = data.roster;
+                        rosterNotes = data.rosterNotes || {};
+                        if (data.shifts) SHIFT_TYPES = data.shifts;
+                        renderRoster();
+                        saveData();
+                        showToast("Backup eingespielt", "check-circle");
+                    }
+                } catch (err) { showToast("Ungültiges Format", "alert-triangle"); }
+            };
+            reader.readAsText(file);
+        }
+
         function showToast(msg, iconName) {
             const t = document.getElementById('toast');
             const m = document.getElementById('toastMessage');
@@ -483,7 +507,6 @@
             setTimeout(() => t.style.display = 'none', 3000);
         }
 
-        // --- Logik ---
         function getEasterSunday(year) {
             const f = Math.floor, G = year % 19, C = f(year / 100), H = (C - f(C / 4) - f((8 * C + 13) / 25) + 19 * G + 15) % 30, I = H - f(H / 28) * (1 - f(29 / (H + 1)) * f((21 - G) / 11)), J = (year + f(year / 4) + I + 2 - C + f(C / 4)) % 7, L = I - J, month = 3 + f((L + 40) / 44), day = L + 28 - 31 * f(month / 4);
             return new Date(year, month - 1, day);
@@ -510,13 +533,10 @@
             const year = currentDate.getFullYear(), month = currentDate.getMonth();
             const days = []; const d = new Date(year, month, 1);
             while (d.getMonth() === month) { days.push(new Date(d)); d.setDate(d.getDate() + 1); }
-            
             const holidays = getHolidaysNRW(year);
             const workingDaysCount = calculateWorkingDays(year, month);
             const monthTargetHours = workingDaysCount * 7.7;
-            
             document.getElementById('monthLabel').innerText = currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' });
-            
             const dailyCounts = {};
             days.forEach(day => {
                 const key = day.toISOString().split('T')[0];
@@ -527,10 +547,8 @@
                     if (s && dailyCounts[key][s] !== undefined) dailyCounts[key][s]++;
                 });
             });
-
             const head = document.getElementById('tableHead');
             const hidden = (key) => viewSettings[key] ? '' : 'hidden-col';
-
             let headHTML = `<tr class="sticky top-0 z-40 bg-[var(--table-header-bg)] backdrop-blur-md">
                 <th class="p-3 text-left text-[10px] font-black border-b border-black/10 sticky-left name-col-bg uppercase text-current min-w-[140px]">KOLLEGE</th>
                 <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-current ${hidden('status')}">VZ</th>
@@ -540,13 +558,11 @@
                 <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-current ${hidden('diff')}">+/-</th>
                 <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-blue-500 ${hidden('prev')}">Vmt</th>
                 <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-orange-500 ${hidden('total')}">Ges</th>`;
-
             days.forEach(day => {
                 const key = day.toISOString().split('T')[0];
                 const isHoliday = !!holidays[key];
                 const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                 const isWarn = showWarnings && (dailyCounts[key].FD < 2 || dailyCounts[key].SD < 2 || dailyCounts[key].ND < 2);
-                
                 headHTML += `<th class="p-2 border-b border-black/5 min-w-[40px] ${isHoliday ? 'holiday-cell' : (isWeekend ? 'weekend-cell' : '')} ${isWarn ? 'warning-cell' : ''}">
                     <div class="flex flex-col items-center">
                         <span class="text-[8px] uppercase font-black text-slate-500">${day.toLocaleDateString('de-DE', { weekday: 'short' })}</span>
@@ -556,7 +572,6 @@
             });
             headHTML += `</tr>`;
             head.innerHTML = headHTML;
-
             const body = document.getElementById('tableBody'); body.innerHTML = '';
             EMPLOYEES.forEach((emp, idx) => {
                 const tr = document.createElement('tr');
@@ -564,9 +579,8 @@
                 let actualHours = 0; 
                 let actualWorkingDays = 0;
                 const empRoster = roster[emp.id] || {};
-                const empNotes = rosterNotes[emp.id] || {}; // Notizen für diesen Kollegen
+                const empNotes = rosterNotes[emp.id] || {};
                 const empTarget = monthTargetHours * ((parseFloat(emp.status) || 100) / 100);
-                
                 let daysHTML = "";
                 days.forEach(day => {
                     const key = day.toISOString().split('T')[0];
@@ -578,16 +592,16 @@
                     }
                     const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                     const isWarn = showWarnings && (dailyCounts[key].FD < 2 || dailyCounts[key].SD < 2 || dailyCounts[key].ND < 2);
-                    
-                    daysHTML += `<td onclick="handleCellClick('${emp.id}', '${key}', '${emp.name}')" class="p-0.5 cursor-pointer border-r border-black/5 relative ${holidays[key] ? 'holiday-cell' : (isWeekend ? 'weekend-cell' : '')} ${isWarn ? 'warning-cell' : ''}" title="${note || ''}">
-                        <div class="h-8 w-full rounded-lg flex items-center justify-center text-[10px] font-black transition-all ${s ? `${SHIFT_TYPES[s].color} ${SHIFT_TYPES[s].textColor} shadow-md scale-90` : 'hover:bg-blue-500/10'}">${s || ''}</div>
-                        ${note ? '<div class="note-marker"></div>' : ''}
+                    // FIXED: Display note content subtly at the bottom of the cell
+                    daysHTML += `<td onclick="handleCellClick('${emp.id}', '${key}', '${emp.name}')" class="p-0.5 cursor-pointer border-r border-black/5 relative ${holidays[key] ? 'holiday-cell' : (isWeekend ? 'weekend-cell' : '')} ${isWarn ? 'warning-cell' : ''}">
+                        <div class="h-8 w-full rounded-lg flex flex-col items-center justify-center transition-all ${s ? `${SHIFT_TYPES[s].color} ${SHIFT_TYPES[s].textColor} shadow-md scale-90` : 'hover:bg-blue-500/10'}">
+                            <span class="text-[10px] font-black leading-none">${s || ''}</span>
+                            ${note ? `<span class="text-[6px] opacity-70 font-bold truncate max-w-full px-1 leading-tight mt-0.5">${note}</span>` : ''}
+                        </div>
                     </td>`;
                 });
-
                 const diff = actualHours - empTarget;
                 const totalÜ = diff + (parseFloat(emp.prevOvertime) || 0);
-
                 tr.innerHTML = `<td class="p-3 sticky-left name-col-bg border-r border-black/5 shadow-xl">
                     <div class="font-black text-[11px] uppercase cursor-pointer hover:text-blue-500" onclick="openEditModal(${idx})">${emp.name}</div>
                     <div class="text-[8px] text-slate-500 font-bold truncate uppercase">${emp.role}</div>
@@ -602,7 +616,6 @@
                 ${daysHTML}`;
                 body.appendChild(tr);
             });
-            
             renderTableFooter(days, dailyCounts, hidden);
             renderShiftPalette();
             lucide.createIcons();
@@ -612,7 +625,6 @@
             const foot = document.getElementById('tableFoot');
             let footHTML = "";
             const activeCounters = Object.keys(shiftCounterSettings).filter(s => shiftCounterSettings[s]);
-
             activeCounters.forEach((sCode, sIdx) => {
                 const sInfo = SHIFT_TYPES[sCode];
                 footHTML += `<tr class="bg-[var(--bg-color)]/90 backdrop-blur-sm ${sIdx === 0 ? 'border-t-2 border-blue-500/30' : ''} text-[9px] font-black text-current">
@@ -621,7 +633,6 @@
                         <span class="text-[8px] uppercase tracking-tighter opacity-70 truncate">${sInfo.label}</span>
                     </td>
                     <td colspan="7" class="p-2 border-r border-black/5 text-right opacity-50 ${hidden('status') && hidden('soll') && hidden('ist') && hidden('days') && hidden('diff') && hidden('prev') && hidden('total') ? 'hidden' : ''}">Summe:</td>`;
-                
                 days.forEach(day => {
                     const key = day.toISOString().split('T')[0];
                     const count = dailyCounts[key][sCode] || 0;
@@ -633,18 +644,13 @@
             foot.innerHTML = footHTML;
         }
 
-        // --- Event Handler ---
         function handleCellClick(empId, dateKey, empName) {
-            if (activeShift === 'NOTE') {
-                openNoteModal(empId, dateKey, empName);
-            } else {
-                toggleShift(empId, dateKey);
-            }
+            if (activeShift === 'NOTE') openNoteModal(empId, dateKey, empName);
+            else toggleShift(empId, dateKey);
         }
 
         function toggleShift(id, k) { if (!roster[id]) roster[id] = {}; roster[id][k] = (roster[id][k] === activeShift) ? null : activeShift; renderRoster(); }
         
-        // NEU: Notizen Management
         function openNoteModal(empId, dateKey, empName) {
             noteTarget = { empId, dateKey };
             const currentNote = (rosterNotes[empId] || {})[dateKey] || "";
@@ -655,22 +661,14 @@
             setTimeout(() => document.getElementById('noteInput').focus(), 100);
         }
 
-        function closeNoteModal() {
-            document.getElementById('noteModalOverlay').style.display = 'none';
-            noteTarget = null;
-        }
+        function closeNoteModal() { document.getElementById('noteModalOverlay').style.display = 'none'; noteTarget = null; }
 
         function saveNote() {
             if (!noteTarget) return;
             const text = document.getElementById('noteInput').value.trim();
             if (!rosterNotes[noteTarget.empId]) rosterNotes[noteTarget.empId] = {};
-            
-            if (text === "") {
-                delete rosterNotes[noteTarget.empId][noteTarget.dateKey];
-            } else {
-                rosterNotes[noteTarget.empId][noteTarget.dateKey] = text;
-            }
-            
+            if (text === "") delete rosterNotes[noteTarget.empId][noteTarget.dateKey];
+            else rosterNotes[noteTarget.empId][noteTarget.dateKey] = text;
             renderRoster();
             closeNoteModal();
             saveData();
@@ -757,17 +755,13 @@
         function closeYearModal() { document.getElementById('yearViewOverlay').style.display = 'none'; }
         function renderMonthGrid() { const container = document.getElementById('monthGrid'); container.innerHTML = ''; const months = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]; months.forEach((m, i) => { const btn = document.createElement('button'); const isCurrent = currentDate.getMonth() === i; btn.className = `p-3 rounded-xl text-[9px] font-black uppercase transition-all border ${isCurrent ? 'bg-blue-600 text-white' : 'bg-black/5 text-current'}`; btn.innerText = m; btn.onclick = () => { currentDate.setMonth(i); renderRoster(); closeYearModal(); }; container.appendChild(btn); }); }
         function changeYear(o) { currentDate.setFullYear(currentDate.getFullYear() + o); document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); }
-        
         function renderShiftPalette() { 
             const c = document.getElementById('shiftPalette'); c.innerHTML = ''; 
-            
-            // NEU: Notiz-Modus Button in der Palette
             const noteBtn = document.createElement('button');
             noteBtn.className = `flex shrink-0 items-center gap-2 p-1 md:p-2 rounded-xl border transition-all ${activeShift==='NOTE'?'bg-yellow-500/20 border-yellow-500':'bg-black/5 border-white/5'}`;
             noteBtn.onclick = () => { activeShift = 'NOTE'; renderShiftPalette(); };
             noteBtn.innerHTML = `<div class="w-8 h-8 rounded-lg bg-yellow-500 flex items-center justify-center font-black text-white shadow-md"><i data-lucide="sticky-note" size="14"></i></div><span class="text-[9px] font-bold uppercase hidden lg:block text-current">Notiz</span>`;
             c.appendChild(noteBtn);
-
             Object.entries(SHIFT_TYPES).forEach(([k, v]) => { 
                 const b = document.createElement('button'); 
                 b.className = `flex shrink-0 items-center gap-2 p-1 md:p-2 rounded-xl border transition-all ${activeShift===k?'bg-blue-500/20 border-blue-500':'bg-black/5 border-white/5'}`; 
@@ -777,7 +771,6 @@
             }); 
             lucide.createIcons();
         }
-
         window.onload = async () => {
             if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
             renderRoster();
