@@ -66,6 +66,7 @@
         .row-separator td { border-bottom: 1px solid var(--separator-color); }
         .warning-cell { background-color: rgba(225, 29, 72, 0.15) !important; }
         .dragging { opacity: 0.5; background: rgba(59, 130, 246, 0.2) !important; }
+        .dragging-col { background: rgba(59, 130, 246, 0.4) !important; outline: 2px dashed #3b82f6; }
 
         #columnOverlay, #modalOverlay, #addEmpOverlay, #editEmpOverlay, #shiftModalOverlay, #yearViewOverlay, #noteModalOverlay, #toast {
             display: none;
@@ -96,7 +97,6 @@
         .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(120, 120, 120, 0.3); border-radius: 10px; }
         
-        /* Zoom Slider Styling */
         input[type=range].zoom-slider::-webkit-slider-runnable-track { background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px; }
         input[type=range].zoom-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 12px; width: 12px; border-radius: 50%; background: #3b82f6; margin-top: -4px; }
 
@@ -252,7 +252,7 @@
                     <button onclick="handleNavigation(1)" class="p-1.5 hover:bg-white/10 rounded-lg"><i data-lucide="chevron-right" size="14"></i></button>
                 </div>
 
-                <!-- Zoom Regler im Header -->
+                <!-- Zoom Regler -->
                 <div class="hidden lg:flex items-center gap-2 px-3 py-1 bg-black/20 rounded-xl border border-white/5 shrink-0">
                     <button onclick="adjustZoom(-0.05)" class="text-slate-500 hover:text-white transition-colors"><i data-lucide="minus-circle" size="14"></i></button>
                     <input type="range" id="zoomSlider" min="0.5" max="1.5" step="0.05" value="1" oninput="adjustZoom(0)" class="w-16 h-1 appearance-none bg-white/10 rounded-full zoom-slider cursor-pointer accent-blue-500">
@@ -265,7 +265,6 @@
                 </div>
 
                 <div class="flex items-center gap-1 shrink-0 ml-2">
-                    <!-- Edit Mode Toggle -->
                     <button id="editModeBtn" onclick="toggleEditMode()" class="p-2 hover:bg-white/10 rounded-xl text-slate-400 transition-all border border-transparent" title="Bearbeitung aktivieren/deaktivieren">
                         <i data-lucide="lock" id="editModeIcon" size="16"></i>
                     </button>
@@ -289,6 +288,7 @@
         </div>
 
         <div class="flex flex-1 overflow-hidden relative mb-20 md:mb-0">
+            <!-- Dienstpalette (Sortierbar) -->
             <aside id="shiftPaletteContainer" class="fixed bottom-0 left-0 w-full z-[100] md:relative md:w-20 lg:w-48 p-2 md:p-0 no-print transition-all">
                 <div class="glass p-3 md:p-4 rounded-t-3xl md:rounded-2xl h-full flex flex-row md:flex-col gap-2 overflow-x-auto no-scrollbar">
                     <div id="shiftPalette" class="flex flex-row md:flex-col gap-2 items-center"></div>
@@ -321,9 +321,13 @@
             appId: "1:193664964493:web:e99e822739cb13c8df0fc4"
         };
 
+        // Orders & Layout Settings
+        let columnOrder = JSON.parse(localStorage.getItem('helios_col_order')) || ['status', 'soll', 'ist', 'diff', 'prev'];
+        let shiftOrder = JSON.parse(localStorage.getItem('helios_shift_order')) || ['FD', 'SD', 'ND', 'ZD', 'U', 'K', 'LT', 'X'];
+        
         let viewSettings = JSON.parse(localStorage.getItem('helios_view_settings')) || { status: true, soll: true, ist: true, diff: true, prev: true };
         let shiftCounterSettings = JSON.parse(localStorage.getItem('helios_counter_settings')) || { FD: true, SD: true, ND: true, ZD: true };
-        let isEditMode = false; // Standardmäßig gesperrt (Sicherheit)
+        let isEditMode = false;
 
         const INITIAL_EMPLOYEES = [
             { id: '1', name: 'Adams, Hendrik', role: 'Stationsleitung', status: '100%', prevOvertime: 0 },
@@ -363,12 +367,13 @@
         let currentDate = new Date(2026, 3, 1);
         let activeShift = 'FD';
         let viewMode = 'month';
-        let draggingIndex = null;
-        let editingEmpIndex = null;
+        let draggingIdx = null;
+        let draggingType = null; // 'row', 'col', 'palette'
+        let editingEmpIdx = null;
         let editingField = 'status';
         let noteTarget = null;
 
-        // --- Firebase Core Integration ---
+        // --- Firebase ---
         async function initFirebase() {
             if (!window.firebaseCore) return;
             const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, getFirestore, onAuthStateChanged } = window.firebaseCore;
@@ -397,6 +402,8 @@
                     if (data.roster) roster = data.roster;
                     if (data.rosterNotes) rosterNotes = data.rosterNotes;
                     if (data.shifts) SHIFT_TYPES = data.shifts;
+                    if (data.columnOrder) columnOrder = data.columnOrder;
+                    if (data.shiftOrder) shiftOrder = data.shiftOrder;
                     renderRoster();
                     showToast("Cloud-Daten geladen", "cloud");
                 }
@@ -410,33 +417,180 @@
             localStorage.setItem('helios_roster', JSON.stringify(roster));
             localStorage.setItem('helios_roster_notes', JSON.stringify(rosterNotes));
             localStorage.setItem('helios_shifts', JSON.stringify(SHIFT_TYPES));
+            localStorage.setItem('helios_col_order', JSON.stringify(columnOrder));
+            localStorage.setItem('helios_shift_order', JSON.stringify(shiftOrder));
+
             if (user && db) {
                 const { doc, setDoc, serverTimestamp } = window.firebaseCore;
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rosterPlan', 'main');
                 try {
-                    await setDoc(docRef, { employees: EMPLOYEES, roster: roster, rosterNotes: rosterNotes, shifts: SHIFT_TYPES, updatedAt: serverTimestamp() }, { merge: true });
+                    await setDoc(docRef, { employees: EMPLOYEES, roster: roster, rosterNotes: rosterNotes, shifts: SHIFT_TYPES, columnOrder, shiftOrder, updatedAt: serverTimestamp() }, { merge: true });
                     showToast("Cloud gesichert", "cloud-check");
                 } catch (e) { showToast("Sync-Fehler", "alert-triangle"); }
             }
             setTimeout(() => saveIcon.classList.remove('animate-spin-fast'), 800);
         }
 
-        // --- Core Functions ---
-        function toggleViewMode(mode) { viewMode = mode; updateViewButtons(); renderRoster(); }
-        function updateViewButtons() {
-            const mBtn = document.getElementById('viewMonthBtn'); const wBtn = document.getElementById('viewWeekBtn');
-            mBtn.className = `px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${viewMode==='month'?'bg-blue-600 text-white shadow-lg':'text-slate-500 hover:text-white'}`;
-            wBtn.className = `px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${viewMode==='week'?'bg-blue-600 text-white shadow-lg':'text-slate-500 hover:text-white'}`;
-        }
-        function handleNavigation(dir) { currentDate.setMonth(currentDate.getMonth() + dir); renderRoster(); }
-
-        function toggleTheme() {
-            document.body.classList.toggle('light-mode');
-            const icon = document.getElementById('themeIcon');
-            icon.setAttribute('data-lucide', document.body.classList.contains('light-mode') ? 'moon' : 'sun');
-            lucide.createIcons();
+        // --- Drag & Drop Handlers ---
+        function onDragStart(e, type, idx) {
+            if(!isEditMode) { e.preventDefault(); return; }
+            draggingType = type;
+            draggingIdx = idx;
+            e.currentTarget.classList.add(type === 'col' ? 'dragging-col' : 'dragging');
         }
 
+        function onDragOver(e) { e.preventDefault(); }
+
+        function onDrop(e, type, idx) {
+            e.preventDefault();
+            if(!isEditMode || draggingType !== type || draggingIdx === null || draggingIdx === idx) return;
+            
+            if (type === 'row') {
+                const moved = EMPLOYEES.splice(draggingIdx, 1)[0];
+                EMPLOYEES.splice(idx, 0, moved);
+            } else if (type === 'col') {
+                const moved = columnOrder.splice(draggingIdx, 1)[0];
+                columnOrder.splice(idx, 0, moved);
+            } else if (type === 'palette') {
+                const moved = shiftOrder.splice(draggingIdx, 1)[0];
+                shiftOrder.splice(idx, 0, moved);
+            }
+
+            draggingIdx = null; draggingType = null;
+            renderRoster(); saveData();
+        }
+
+        // --- Rendering ---
+        function renderRoster() {
+            const year = currentDate.getFullYear(), month = currentDate.getMonth();
+            const allDays = []; const d = new Date(year, month, 1);
+            while (d.getMonth() === month) { allDays.push(new Date(d)); d.setDate(d.getDate() + 1); }
+            const visibleDays = viewMode === 'month' ? allDays : allDays.slice(0, 7);
+            const holidays = getHolidaysNRW(year);
+            const workDays = calculateWorkingDays(year, month);
+            const monthSoll = workDays * 7.7;
+            
+            document.getElementById('monthLabel').innerText = currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' });
+            document.getElementById('headerWorkingDays').innerText = `${workDays} Arbeitstage`;
+
+            const isVisible = (key) => viewSettings[key];
+            const colLabels = { status: 'VZ', soll: 'Soll', ist: 'Ist', diff: '+/-', prev: 'Vmt' };
+
+            // Header
+            let headHTML = `<tr><th class="p-3 text-left text-[10px] font-black sticky-left name-col-bg border-b border-black/10 min-w-[140px]">MITARBEITER</th>`;
+            
+            // Reorderable Columns (Functions)
+            columnOrder.forEach((key, idx) => {
+                if (isVisible(key)) {
+                    headHTML += `<th draggable="${isEditMode}" ondragstart="onDragStart(event, 'col', ${idx})" ondragover="onDragOver(event)" ondrop="onDrop(event, 'col', ${idx})" class="p-1 text-center text-[9px] font-black border-b border-black/10 cursor-move transition-all hover:bg-white/5 ${key==='prev'?'text-blue-500':''}">${colLabels[key]}</th>`;
+                }
+            });
+
+            visibleDays.forEach(day => {
+                const k = day.toISOString().split('T')[0];
+                const isH = !!holidays[k], isW = day.getDay() === 0 || day.getDay() === 6;
+                headHTML += `<th class="p-2 border-b border-black/10 min-w-[40px] ${isH ? 'holiday-cell' : (isW ? 'weekend-cell' : '')}">
+                    <div class="flex flex-col items-center">
+                        <span class="text-[8px] opacity-50 uppercase">${day.toLocaleDateString('de-DE', { weekday: 'short' })}</span>
+                        <span class="text-xs font-black ${isH ? 'text-orange-500' : ''}">${day.getDate()}</span>
+                    </div>
+                </th>`;
+            });
+            document.getElementById('tableHead').innerHTML = headHTML + `</tr>`;
+
+            // Body
+            const dailyCounts = {};
+            visibleDays.forEach(day => {
+                const k = day.toISOString().split('T')[0];
+                dailyCounts[k] = {};
+                shiftOrder.forEach(sk => dailyCounts[k][sk] = 0);
+                EMPLOYEES.forEach(e => {
+                    const s = (roster[e.id] || {})[k];
+                    if(s && dailyCounts[k][s] !== undefined) dailyCounts[k][s]++;
+                });
+            });
+
+            let bodyHTML = "";
+            EMPLOYEES.forEach((emp, rIdx) => {
+                let ist = 0; const eRost = roster[emp.id] || {}, eNotes = rosterNotes[emp.id] || {};
+                allDays.forEach(day => { const k = day.toISOString().split('T')[0]; if (eRost[k] && SHIFT_TYPES[eRost[k]]) ist += SHIFT_TYPES[eRost[k]].hours; });
+                const empSoll = monthSoll * (parseInt(emp.status) / 100);
+                const diff = ist - empSoll;
+
+                let rowHTML = `<tr draggable="${isEditMode}" ondragstart="onDragStart(event, 'row', ${rIdx})" ondragover="onDragOver(event)" ondrop="onDrop(event, 'row', ${rIdx})" class="group border-b border-black/5 hover:bg-[var(--row-hover)]">
+                    <td class="p-3 sticky-left name-col-bg border-r border-black/5 ${isEditMode ? 'cursor-move' : ''}">
+                        <div class="font-black text-[11px] uppercase ${isEditMode ? 'hover:text-blue-500 cursor-pointer' : ''}" ${isEditMode ? `onclick="openEditModal(${rIdx})"` : ''}>${emp.name}</div>
+                        <div class="text-[8px] text-slate-500 truncate uppercase tracking-tighter">${emp.role}</div>
+                    </td>`;
+
+                // Columns in specified order
+                columnOrder.forEach(key => {
+                    if (isVisible(key)) {
+                        if (key === 'status') rowHTML += `<td class="p-1 text-center text-[9px] font-bold text-slate-400 ${isEditMode ? 'cursor-pointer' : ''}" ${isEditMode ? `onclick="openSliderModal(${rIdx}, 'status')"` : ''}>${emp.status}</td>`;
+                        if (key === 'soll') rowHTML += `<td class="p-1 text-center text-[9px] font-mono text-slate-400">${empSoll.toFixed(0)}</td>`;
+                        if (key === 'ist') rowHTML += `<td class="p-1 text-center text-[10px] font-black">${ist.toFixed(0)}</td>`;
+                        if (key === 'diff') rowHTML += `<td class="p-1 text-center text-[9px] font-black ${diff>=0?'text-emerald-500':'text-rose-500'}">${diff.toFixed(0)}</td>`;
+                        if (key === 'prev') rowHTML += `<td class="p-1 text-center text-[9px] font-black text-blue-500 ${isEditMode ? 'cursor-pointer' : ''}" ${isEditMode ? `onclick="openSliderModal(${rIdx}, 'prevOvertime')"` : ''}>${emp.prevOvertime}</td>`;
+                    }
+                });
+
+                visibleDays.forEach(day => {
+                    const k = day.toISOString().split('T')[0], s = eRost[k], n = eNotes[k], isH = !!holidays[k];
+                    rowHTML += `<td ${isEditMode ? `onclick="handleCellClick('${emp.id}', '${k}', '${emp.name}')"` : ''} class="p-0.5 border-r border-black/5 text-center ${isH ? 'holiday-cell' : ''} ${isEditMode ? 'cursor-pointer' : ''}">
+                        <div class="h-8 w-full rounded flex flex-col items-center justify-center transition-all ${s ? `${SHIFT_TYPES[s].color} ${SHIFT_TYPES[s].textColor} shadow-md` : 'hover:bg-blue-500/5'}">
+                            <span class="text-[10px] font-black">${s || ''}</span>
+                            ${n ? '<div class="w-1.5 h-1.5 rounded-full bg-yellow-500 mt-0.5 shadow-sm"></div>' : ''}
+                        </div>
+                    </td>`;
+                });
+                bodyHTML += rowHTML + `</tr>`;
+            });
+            document.getElementById('tableBody').innerHTML = bodyHTML;
+            renderTableFooter(visibleDays, dailyCounts, isVisible);
+            renderShiftPalette(); lucide.createIcons();
+        }
+
+        function renderTableFooter(days, counts, isVisible) {
+            const foot = document.getElementById('tableFoot'); foot.innerHTML = "";
+            shiftOrder.filter(c => shiftCounterSettings[c] && c !== 'X').forEach(sCode => {
+                const sInfo = SHIFT_TYPES[sCode];
+                let fHTML = `<tr class="bg-[var(--bg-color)]/95 border-t border-black/5 text-[9px] font-black">
+                    <td class="p-2 sticky-left name-col-bg border-r border-black/5 flex items-center gap-2">
+                        <div class="w-4 h-4 rounded ${sInfo.color} flex items-center justify-center text-[8px] ${sInfo.textColor}">${sCode}</div>
+                        <span class="opacity-70 truncate">${sInfo.label}</span>
+                    </td>`;
+                
+                // Align columns
+                columnOrder.forEach(key => { if(isVisible(key)) fHTML += `<td class="border-r border-black/5"></td>`; });
+
+                days.forEach(day => {
+                    const k = day.toISOString().split('T')[0];
+                    fHTML += `<td class="p-1 text-center border-r border-black/5">${counts[k][sCode] || 0}</td>`;
+                });
+                foot.innerHTML += fHTML + `</tr>`;
+            });
+        }
+
+        function renderShiftPalette() {
+            const c = document.getElementById('shiftPalette'); 
+            c.innerHTML = `<button onclick="activeShift='NOTE'; renderShiftPalette()" class="flex items-center p-1.5 rounded-xl border transition-all ${activeShift==='NOTE'?'bg-yellow-500/20 border-yellow-500 scale-105 shadow-lg':'bg-black/5 border-white/5'}"><div class="w-8 h-8 rounded-lg bg-yellow-500 flex items-center justify-center shadow-md"><i data-lucide="sticky-note" size="14"></i></div></button>`;
+            
+            shiftOrder.forEach((k, idx) => {
+                const v = SHIFT_TYPES[k];
+                const b = document.createElement('button');
+                b.draggable = isEditMode;
+                b.onclic = () => { activeShift = k; renderShiftPalette(); };
+                b.addEventListener('click', () => { activeShift = k; renderShiftPalette(); });
+                b.ondragstart = (e) => onDragStart(e, 'palette', idx);
+                b.ondragover = onDragOver;
+                b.ondrop = (e) => onDrop(e, 'palette', idx);
+                b.className = `flex items-center gap-2 p-1.5 rounded-xl border transition-all ${isEditMode ? 'cursor-move' : ''} ${activeShift===k?'bg-blue-500/20 border-blue-500 scale-105 shadow-lg':'bg-black/5 border-white/5'}`;
+                b.innerHTML = `<div class="w-8 h-8 rounded-lg ${v.color} flex items-center justify-center font-black ${v.textColor} shadow-md">${k}</div>`;
+                c.appendChild(b);
+            }); lucide.createIcons();
+        }
+
+        // --- Logic ---
         function toggleEditMode() {
             isEditMode = !isEditMode;
             const btn = document.getElementById('editModeBtn');
@@ -460,217 +614,51 @@
             renderRoster();
         }
 
-        function handleDragStart(e, idx) { 
-            if(!isEditMode) { e.preventDefault(); return; }
-            draggingIndex = idx; 
-            e.currentTarget.classList.add('dragging'); 
-        }
-        function handleDragOver(e) { e.preventDefault(); }
-        function handleDrop(e, idx) {
-            e.preventDefault();
-            if (!isEditMode || draggingIndex === null || draggingIndex === idx) return;
-            const moved = EMPLOYEES.splice(draggingIndex, 1)[0];
-            EMPLOYEES.splice(idx, 0, moved); draggingIndex = null;
-            renderRoster(); saveData();
-        }
-
-        // --- Holiday & Workday Logic ---
         function getHolidaysNRW(year) {
             const f = Math.floor, G = year % 19, C = f(year / 100), H = (C - f(C / 4) - f((8 * C + 13) / 25) + 19 * G + 15) % 30, I = H - f(H / 28) * (1 - f(29 / (H + 1)) * f((21 - G) / 11)), J = (year + f(year / 4) + I + 2 - C + f(C / 4)) % 7, L = I - J, month = 3 + f((L + 40) / 44), day = L + 28 - 31 * f(month / 4);
             const easter = new Date(year, month - 1, day);
             const add = (d, n) => { const r = new Date(d); r.setDate(r.getDate()+n); return r.toISOString().split('T')[0]; };
-            return {
-                [`${year}-01-01`]: "Neujahr",
-                [add(easter, -2)]: "Karfreitag",
-                [add(easter, 1)]: "Ostermontag",
-                [`${year}-05-01`]: "Tag der Arbeit",
-                [add(easter, 39)]: "Christi Himmelfahrt",
-                [add(easter, 50)]: "Pfingstmontag",
-                [add(easter, 60)]: "Fronleichnam",
-                [`${year}-10-03`]: "Tag der Dt. Einheit",
-                [`${year}-11-01`]: "Allerheiligen",
-                [`${year}-12-25`]: "1. Weihnachtstag",
-                [`${year}-12-26`]: "2. Weihnachtstag"
-            };
+            return { [`${year}-01-01`]: "Neujahr", [add(easter, -2)]: "Karfreitag", [add(easter, 1)]: "Ostermontag", [`${year}-05-01`]: "Tag der Arbeit", [add(easter, 39)]: "Christi Himmelfahrt", [add(easter, 50)]: "Pfingstmontag", [add(easter, 60)]: "Fronleichnam", [`${year}-10-03`]: "Tag der Dt. Einheit", [`${year}-11-01`]: "Allerheiligen", [`${year}-12-25`]: "1. Weihnachtstag", [`${year}-12-26`]: "2. Weihnachtstag" };
         }
 
         function calculateWorkingDays(year, month) {
-            const h = getHolidaysNRW(year);
-            let count = 0;
-            const d = new Date(year, month, 1);
-            while (d.getMonth() === month) {
-                const k = d.toISOString().split('T')[0];
-                if (d.getDay() !== 0 && d.getDay() !== 6 && !h[k]) count++;
-                d.setDate(d.getDate() + 1);
-            }
-            return count;
+            const h = getHolidaysNRW(year); let count = 0; const d = new Date(year, month, 1);
+            while (d.getMonth() === month) { const k = d.toISOString().split('T')[0]; if (d.getDay() !== 0 && d.getDay() !== 6 && !h[k]) count++; d.setDate(d.getDate() + 1); } return count;
         }
 
-        function renderRoster() {
-            const year = currentDate.getFullYear(), month = currentDate.getMonth();
-            const allDays = []; const d = new Date(year, month, 1);
-            while (d.getMonth() === month) { allDays.push(new Date(d)); d.setDate(d.getDate() + 1); }
-            const visibleDays = viewMode === 'month' ? allDays : allDays.slice(0, 7);
-            
-            const holidays = getHolidaysNRW(year);
-            const workDays = calculateWorkingDays(year, month);
-            const monthSoll = workDays * 7.7;
-            
-            document.getElementById('monthLabel').innerText = currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' });
-            document.getElementById('headerWorkingDays').innerText = `${workDays} Arbeitstage`;
-
-            const hidden = (key) => viewSettings[key] ? '' : 'hidden-col';
-            let headHTML = `<tr><th class="p-3 text-left text-[10px] font-black sticky-left name-col-bg border-b border-black/10 min-w-[140px]">MITARBEITER</th>
-                <th class="p-1 text-center text-[9px] font-black border-b border-black/10 ${hidden('status')}">VZ</th>
-                <th class="p-1 text-center text-[9px] font-black border-b border-black/10 ${hidden('soll')}">Soll</th>
-                <th class="p-1 text-center text-[9px] font-black border-b border-black/10 ${hidden('ist')}">Ist</th>
-                <th class="p-1 text-center text-[9px] font-black border-b border-black/10 ${hidden('diff')}">+/-</th>
-                <th class="p-1 text-center text-[9px] font-black border-b border-black/10 text-blue-500 ${hidden('prev')}">Vmt</th>`;
-            
-            visibleDays.forEach(day => {
-                const k = day.toISOString().split('T')[0];
-                const isH = !!holidays[k];
-                const isW = day.getDay() === 0 || day.getDay() === 6;
-                headHTML += `<th class="p-2 border-b border-black/10 min-w-[40px] ${isH ? 'holiday-cell' : (isW ? 'weekend-cell' : '')}">
-                    <div class="flex flex-col items-center">
-                        <span class="text-[8px] opacity-50 uppercase">${day.toLocaleDateString('de-DE', { weekday: 'short' })}</span>
-                        <span class="text-xs font-black ${isH ? 'text-orange-500' : ''}">${day.getDate()}</span>
-                    </div>
-                </th>`;
-            });
-            document.getElementById('tableHead').innerHTML = headHTML + `</tr>`;
-
-            const dailyCounts = {};
-            visibleDays.forEach(day => {
-                const k = day.toISOString().split('T')[0];
-                dailyCounts[k] = {};
-                Object.keys(SHIFT_TYPES).forEach(sk => dailyCounts[k][sk] = 0);
-                EMPLOYEES.forEach(e => {
-                    const s = (roster[e.id] || {})[k];
-                    if(s) dailyCounts[k][s]++;
-                });
-            });
-
-            let bodyHTML = "";
-            EMPLOYEES.forEach((emp, idx) => {
-                let ist = 0; const eRost = roster[emp.id] || {}, eNotes = rosterNotes[emp.id] || {};
-                allDays.forEach(day => { 
-                    const k = day.toISOString().split('T')[0]; 
-                    if (eRost[k] && SHIFT_TYPES[eRost[k]]) ist += SHIFT_TYPES[eRost[k]].hours; 
-                });
-                
-                const empSoll = monthSoll * (parseInt(emp.status) / 100);
-                const diff = ist - empSoll;
-
-                let dHTML = "";
-                visibleDays.forEach(day => {
-                    const k = day.toISOString().split('T')[0]; 
-                    const s = eRost[k], n = eNotes[k], isH = !!holidays[k];
-                    const cellCursor = isEditMode ? 'cursor-pointer' : 'cursor-default';
-                    dHTML += `<td ${isEditMode ? `onclick="handleCellClick('${emp.id}', '${k}', '${emp.name}')"` : ''} class="p-0.5 border-r border-black/5 text-center ${isH ? 'holiday-cell' : ''} ${cellCursor}">
-                        <div class="h-8 w-full rounded flex flex-col items-center justify-center transition-all ${s ? `${SHIFT_TYPES[s].color} ${SHIFT_TYPES[s].textColor} shadow-md` : 'hover:bg-blue-500/5'}">
-                            <span class="text-[10px] font-black">${s || ''}</span>
-                            ${n ? '<div class="w-1.5 h-1.5 rounded-full bg-yellow-500 mt-0.5 shadow-sm"></div>' : ''}
-                        </div>
-                    </td>`;
-                });
-
-                bodyHTML += `<tr draggable="${isEditMode}" ondragstart="handleDragStart(event, ${idx})" ondragover="handleDragOver(event)" ondrop="handleDrop(event, ${idx})" class="group border-b border-black/5 hover:bg-[var(--row-hover)]">
-                    <td class="p-3 sticky-left name-col-bg border-r border-black/5 ${isEditMode ? 'cursor-move' : 'cursor-default'}">
-                        <div class="font-black text-[11px] uppercase ${isEditMode ? 'hover:text-blue-500 cursor-pointer' : ''}" ${isEditMode ? `onclick="openEditModal(${idx})"` : ''}>${emp.name}</div>
-                        <div class="text-[8px] text-slate-500 truncate uppercase tracking-tighter">${emp.role}</div>
-                    </td>
-                    <td class="p-1 text-center text-[9px] font-bold text-slate-400 ${isEditMode ? 'cursor-pointer' : ''} ${hidden('status')}" ${isEditMode ? `onclick="openSliderModal(${idx}, 'status')"` : ''}>${emp.status}</td>
-                    <td class="p-1 text-center text-[9px] font-mono text-slate-400 ${hidden('soll')}">${empSoll.toFixed(0)}</td>
-                    <td class="p-1 text-center text-[10px] font-black ${hidden('ist')}">${ist.toFixed(0)}</td>
-                    <td class="p-1 text-center text-[9px] font-black ${diff>=0?'text-emerald-500':'text-rose-500'} ${hidden('diff')}">${diff.toFixed(0)}</td>
-                    <td class="p-1 text-center text-[9px] font-black text-blue-500 ${isEditMode ? 'cursor-pointer' : ''} ${hidden('prev')}" ${isEditMode ? `onclick="openSliderModal(${idx}, 'prevOvertime')"` : ''}>${emp.prevOvertime}</td>
-                    ${dHTML}
-                </tr>`;
-            });
-            document.getElementById('tableBody').innerHTML = bodyHTML;
-            renderTableFooter(visibleDays, dailyCounts, hidden);
-            renderShiftPalette(); lucide.createIcons();
-        }
-
-        function renderTableFooter(days, counts, hidden) {
-            const foot = document.getElementById('tableFoot'); foot.innerHTML = "";
-            const codes = Object.keys(SHIFT_TYPES).filter(c => shiftCounterSettings[c] && c !== 'X');
-            codes.forEach(sCode => {
-                const sInfo = SHIFT_TYPES[sCode];
-                let fHTML = `<tr class="bg-[var(--bg-color)]/95 border-t border-black/5 text-[9px] font-black">
-                    <td class="p-2 sticky-left name-col-bg border-r border-black/5 flex items-center gap-2">
-                        <div class="w-4 h-4 rounded ${sInfo.color} flex items-center justify-center text-[8px] ${sInfo.textColor}">${sCode}</div>
-                        <span class="opacity-70 truncate">${sInfo.label}</span>
-                    </td>
-                    <td colspan="5" class="border-r border-black/5 ${hidden('status') && hidden('soll') && hidden('ist') && hidden('diff') && hidden('prev') ? 'hidden-col' : ''}"></td>`;
-                days.forEach(day => {
-                    const k = day.toISOString().split('T')[0];
-                    fHTML += `<td class="p-1 text-center border-r border-black/5">${counts[k][sCode] || 0}</td>`;
-                });
-                foot.innerHTML += fHTML + `</tr>`;
-            });
-        }
-
-        // --- Standard UI Interaction ---
+        // --- Modals ---
         function handleCellClick(empId, dateKey, empName) {
             if (!isEditMode) return;
             if (activeShift === 'NOTE') openNoteModal(empId, dateKey, empName);
             else { if (!roster[empId]) roster[empId] = {}; roster[empId][dateKey] = roster[empId][dateKey] === activeShift ? null : activeShift; renderRoster(); }
         }
-
-        function openAddEmpOverlay() { 
-            if(!isEditMode) { showToast("Sperre aktiv!", "lock"); return; }
-            document.getElementById('addEmpOverlay').style.display = 'flex'; 
-        }
+        function openAddEmpOverlay() { if(!isEditMode) { showToast("Sperre aktiv!", "lock"); return; } document.getElementById('addEmpOverlay').style.display = 'flex'; }
         function closeAddEmpOverlay() { document.getElementById('addEmpOverlay').style.display = 'none'; }
         function addNewEmployee() {
-            const n = document.getElementById('newEmpName').value;
-            if(!n) return;
+            const n = document.getElementById('newEmpName').value; if(!n) return;
             EMPLOYEES.push({ id: Date.now().toString(), name: n, role: document.getElementById('newEmpRole').value || 'Pflege', status: document.getElementById('newEmpStatus').value+'%', prevOvertime: 0 });
-            renderRoster(); closeAddEmpOverlay(); saveData();
-            document.getElementById('newEmpName').value = '';
+            renderRoster(); closeAddEmpOverlay(); saveData(); document.getElementById('newEmpName').value = '';
         }
-
-        function openEditModal(i) { 
-            if(!isEditMode) return;
-            editingEmpIndex = i; 
-            document.getElementById('editEmpNameInput').value = EMPLOYEES[i].name; 
-            document.getElementById('editEmpRoleInput').value = EMPLOYEES[i].role; 
-            document.getElementById('editEmpOverlay').style.display = 'flex'; 
-        }
+        function openEditModal(i) { if(!isEditMode) return; editingEmpIdx = i; document.getElementById('editEmpNameInput').value = EMPLOYEES[i].name; document.getElementById('editEmpRoleInput').value = EMPLOYEES[i].role; document.getElementById('editEmpOverlay').style.display = 'flex'; }
         function closeEditModal() { document.getElementById('editEmpOverlay').style.display = 'none'; }
-        function applyEditEmployee() { EMPLOYEES[editingEmpIndex].name = document.getElementById('editEmpNameInput').value; EMPLOYEES[editingEmpIndex].role = document.getElementById('editEmpRoleInput').value; renderRoster(); closeEditModal(); saveData(); }
-        function confirmDeleteEmployee() { if(confirm('Mitarbeiter wirklich löschen?')) { EMPLOYEES.splice(editingEmpIndex, 1); renderRoster(); closeEditModal(); saveData(); } }
-
-        function openSliderModal(i, f) { 
-            if(!isEditMode) return;
-            editingEmpIndex = i; editingField = f; const s = document.getElementById('statusSlider'); s.value = f==='prevOvertime' ? EMPLOYEES[i].prevOvertime : parseInt(EMPLOYEES[i].status); document.getElementById('modalTitle').innerText = f==='status' ? 'VZ-Anteil' : 'Vormonat'; updateSliderLabel(); document.getElementById('modalOverlay').style.display = 'flex'; 
-        }
+        function applyEditEmployee() { EMPLOYEES[editingEmpIdx].name = document.getElementById('editEmpNameInput').value; EMPLOYEES[editingEmpIdx].role = document.getElementById('editEmpRoleInput').value; renderRoster(); closeEditModal(); saveData(); }
+        function confirmDeleteEmployee() { if(confirm('Mitarbeiter wirklich löschen?')) { EMPLOYEES.splice(editingEmpIdx, 1); renderRoster(); closeEditModal(); saveData(); } }
+        function openSliderModal(i, f) { if(!isEditMode) return; editingEmpIdx = i; editingField = f; const s = document.getElementById('statusSlider'); s.value = f==='prevOvertime' ? EMPLOYEES[i].prevOvertime : parseInt(EMPLOYEES[i].status); document.getElementById('modalTitle').innerText = f==='status' ? 'VZ-Anteil' : 'Vormonat'; updateSliderLabel(); document.getElementById('modalOverlay').style.display = 'flex'; }
         function closeSliderModal() { document.getElementById('modalOverlay').style.display = 'none'; }
         function updateSliderLabel() { document.getElementById('sliderValueText').innerText = document.getElementById('statusSlider').value + (editingField==='status'?'%':'h'); }
-        function applySliderValue() { const v = document.getElementById('statusSlider').value; if(editingField==='status') EMPLOYEES[editingEmpIndex].status = v+'%'; else EMPLOYEES[editingEmpIndex].prevOvertime = parseInt(v); renderRoster(); closeSliderModal(); saveData(); }
-
-        function openNoteModal(empId, dateKey, empName) { 
-            if(!isEditMode) return;
-            noteTarget = { empId, dateKey }; 
-            document.getElementById('noteInput').value = (rosterNotes[empId] || {})[dateKey] || ""; 
-            document.getElementById('noteModalOverlay').style.display = 'flex'; 
-        }
+        function applySliderValue() { const v = document.getElementById('statusSlider').value; if(editingField==='status') EMPLOYEES[editingEmpIdx].status = v+'%'; else EMPLOYEES[editingEmpIdx].prevOvertime = parseInt(v); renderRoster(); closeSliderModal(); saveData(); }
+        function openNoteModal(empId, dateKey, empName) { if(!isEditMode) return; noteTarget = { empId, dateKey }; document.getElementById('noteInput').value = (rosterNotes[empId] || {})[dateKey] || ""; document.getElementById('noteModalOverlay').style.display = 'flex'; }
         function closeNoteModal() { document.getElementById('noteModalOverlay').style.display = 'none'; }
         function saveNote() { if(!noteTarget) return; if(!rosterNotes[noteTarget.empId]) rosterNotes[noteTarget.empId] = {}; const val = document.getElementById('noteInput').value.trim(); if(!val) delete rosterNotes[noteTarget.empId][noteTarget.dateKey]; else rosterNotes[noteTarget.empId][noteTarget.dateKey] = val; renderRoster(); closeNoteModal(); saveData(); }
-
         function openColumnModal() {
-            const colList = document.getElementById('columnToggleList'); colList.innerHTML = '';
-            const labels = { status: 'VZ Anteil', soll: 'Soll Std', ist: 'Ist Std', diff: 'Diff +/-', prev: 'Vormonat' };
+            const colList = document.getElementById('columnToggleList'); colList.innerHTML = ''; const labels = { status: 'VZ Anteil', soll: 'Soll Std', ist: 'Ist Std', diff: 'Diff +/-', prev: 'Vormonat' };
             Object.keys(labels).forEach(key => {
                 const div = document.createElement('div'); div.className = "flex items-center justify-between p-2 bg-black/5 rounded-xl";
                 div.innerHTML = `<span class="text-[11px] font-bold">${labels[key]}</span><button onclick="toggleColumn('${key}')" class="w-10 h-5 rounded-full relative transition-all ${viewSettings[key] ? 'bg-blue-600' : 'bg-slate-300'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${viewSettings[key] ? 'right-1' : 'left-1'}"></div></button>`;
                 colList.appendChild(div);
             });
             const shiftList = document.getElementById('shiftToggleList'); shiftList.innerHTML = '';
-            Object.keys(SHIFT_TYPES).forEach(key => { if(key === 'X') return;
-                const btn = document.createElement('button'); btn.onclick = () => toggleShiftCounter(key);
+            shiftOrder.forEach(key => { if(key === 'X') return; const btn = document.createElement('button'); btn.onclick = () => toggleShiftCounter(key);
                 btn.className = `px-3 py-1.5 rounded-xl text-[9px] font-black border transition-all ${shiftCounterSettings[key] ? 'bg-blue-600 text-white border-blue-500 scale-105' : 'bg-black/5 border-white/5 text-slate-500'}`;
                 btn.innerText = key; shiftList.appendChild(btn);
             });
@@ -679,12 +667,7 @@
         function closeColumnModal() { document.getElementById('columnOverlay').style.display = 'none'; }
         function toggleColumn(key) { viewSettings[key] = !viewSettings[key]; localStorage.setItem('helios_view_settings', JSON.stringify(viewSettings)); openColumnModal(); renderRoster(); }
         function toggleShiftCounter(key) { shiftCounterSettings[key] = !shiftCounterSettings[key]; localStorage.setItem('helios_counter_settings', JSON.stringify(shiftCounterSettings)); openColumnModal(); renderRoster(); }
-
-        function openShiftModal() { 
-            if(!isEditMode) { showToast("Sperre aktiv!", "lock"); return; }
-            renderShiftTypeList(); 
-            document.getElementById('shiftModalOverlay').style.display = 'flex'; 
-        }
+        function openShiftModal() { if(!isEditMode) { showToast("Sperre aktiv!", "lock"); return; } renderShiftTypeList(); document.getElementById('shiftModalOverlay').style.display = 'flex'; }
         function closeShiftModal() { document.getElementById('shiftModalOverlay').style.display = 'none'; }
         function renderShiftTypeList() {
             const container = document.getElementById('shiftTypeListContainer'); container.innerHTML = '';
@@ -694,48 +677,27 @@
                 container.appendChild(div);
             });
         }
-
-        function renderShiftPalette() {
-            const c = document.getElementById('shiftPalette'); c.innerHTML = `<button onclick="activeShift='NOTE'; renderShiftPalette()" class="flex items-center p-1.5 rounded-xl border transition-all ${activeShift==='NOTE'?'bg-yellow-500/20 border-yellow-500 scale-105 shadow-lg':'bg-black/5 border-white/5'}"><div class="w-8 h-8 rounded-lg bg-yellow-500 flex items-center justify-center shadow-md"><i data-lucide="sticky-note" size="14"></i></div></button>`;
-            Object.entries(SHIFT_TYPES).forEach(([k, v]) => {
-                const b = document.createElement('button'); b.onclick = () => { activeShift = k; renderShiftPalette(); };
-                b.className = `flex items-center gap-2 p-1.5 rounded-xl border transition-all ${activeShift===k?'bg-blue-500/20 border-blue-500 scale-105 shadow-lg':'bg-black/5 border-white/5'}`;
-                b.innerHTML = `<div class="w-8 h-8 rounded-lg ${v.color} flex items-center justify-center font-black ${v.textColor} shadow-md">${k}</div>`;
-                c.appendChild(b);
-            }); lucide.createIcons();
+        function toggleViewMode(mode) { viewMode = mode; updateViewButtons(); renderRoster(); }
+        function updateViewButtons() {
+            const mBtn = document.getElementById('viewMonthBtn'), wBtn = document.getElementById('viewWeekBtn');
+            mBtn.className = `px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${viewMode==='month'?'bg-blue-600 text-white shadow-lg':'text-slate-500 hover:text-white'}`;
+            wBtn.className = `px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${viewMode==='week'?'bg-blue-600 text-white shadow-lg':'text-slate-500 hover:text-white'}`;
         }
-
-        function exportToPDF() {
-            const oldMode = viewMode; viewMode = 'month'; renderRoster();
-            document.getElementById('printMonthLabel').innerText = currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' });
-            setTimeout(() => { window.print(); viewMode = oldMode; renderRoster(); }, 500);
-        }
-
-        function adjustZoom(delta) { 
-            const slider = document.getElementById('zoomSlider'); 
-            let val = delta === 0 ? parseFloat(slider.value) : parseFloat(slider.value) + delta; 
-            val = Math.max(0.5, Math.min(1.5, val)); 
-            slider.value = val; 
-            document.documentElement.style.setProperty('--zoom-factor', val); 
-            document.getElementById('zoomText').innerText = Math.round(val * 100) + '%'; 
-        }
-
+        function handleNavigation(dir) { currentDate.setMonth(currentDate.getMonth() + dir); renderRoster(); }
+        function toggleTheme() { document.body.classList.toggle('light-mode'); const icon = document.getElementById('themeIcon'); icon.setAttribute('data-lucide', document.body.classList.contains('light-mode') ? 'moon' : 'sun'); lucide.createIcons(); }
+        function adjustZoom(delta) { const slider = document.getElementById('zoomSlider'); let val = delta === 0 ? parseFloat(slider.value) : parseFloat(slider.value) + delta; val = Math.max(0.5, Math.min(1.5, val)); slider.value = val; document.documentElement.style.setProperty('--zoom-factor', val); document.getElementById('zoomText').innerText = Math.round(val * 100) + '%'; }
         function openYearModal() { document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); document.getElementById('yearViewOverlay').style.display = 'flex'; }
         function closeYearModal() { document.getElementById('yearViewOverlay').style.display = 'none'; }
         function renderMonthGrid() { const container = document.getElementById('monthGrid'); container.innerHTML = ''; const months = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]; months.forEach((m, i) => { const btn = document.createElement('button'); const isCurrent = currentDate.getMonth() === i; btn.className = `p-3 rounded-xl text-[9px] font-black uppercase transition-all border ${isCurrent ? 'bg-blue-600 text-white shadow-lg' : 'bg-black/5 text-current'}`; btn.innerText = m; btn.onclick = () => { currentDate.setMonth(i); renderRoster(); closeYearModal(); }; container.appendChild(btn); }); }
         function changeYear(o) { currentDate.setFullYear(currentDate.getFullYear() + o); document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); }
         function showToast(m, i) { const t = document.getElementById('toast'); document.getElementById('toastMessage').innerText = m; const iconEl = document.getElementById('toastIcon'); iconEl.innerHTML = `<i data-lucide="${i}"></i>`; lucide.createIcons(); t.style.display = 'flex'; setTimeout(()=>t.style.display='none', 3000); }
-        function calculateWorkingDays(y, m) { let c = 0; const d = new Date(y, m, 1); while (d.getMonth() === m) { if (d.getDay() !== 0 && d.getDay() !== 6) c++; d.setDate(d.getDate() + 1); } return c; }
+        function exportToPDF() { const oldMode = viewMode; viewMode = 'month'; renderRoster(); document.getElementById('printMonthLabel').innerText = currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' }); setTimeout(() => { window.print(); viewMode = oldMode; renderRoster(); }, 500); }
 
         window.onload = async () => { 
             await initFirebase(); 
             if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
-            
-            // Palette standardmäßig sperren
             document.getElementById('shiftPaletteContainer').classList.add('readonly-overlay');
-            
-            renderRoster(); 
-            updateViewButtons(); 
+            renderRoster(); updateViewButtons(); 
         };
     </script>
 </body>
