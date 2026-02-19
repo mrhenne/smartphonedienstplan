@@ -30,7 +30,6 @@
             --holiday-color: rgba(234, 179, 8, 0.35);
             --weekend-color: rgba(59, 130, 246, 0.15);
             --zoom-factor: 1;
-            --name-shadow: rgba(0,0,0,0.5);
         }
 
         .light-mode {
@@ -44,7 +43,6 @@
             --separator-color: rgba(15, 23, 42, 0.08);
             --holiday-color: rgba(234, 179, 8, 0.25);
             --weekend-color: rgba(59, 130, 246, 0.08);
-            --name-shadow: rgba(15, 23, 42, 0.05);
         }
 
         body {
@@ -54,457 +52,207 @@
             margin: 0;
             overflow: hidden;
             transition: background 0.4s ease, color 0.4s ease;
-            -webkit-tap-highlight-color: transparent;
         }
 
-        .glass {
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border);
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-        }
-
-        .name-col-bg {
-            background: var(--bg-color) !important;
-            box-shadow: 4px 0 12px -4px var(--name-shadow);
-            z-index: 50;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(120, 120, 120, 0.3);
-            border-radius: 10px;
-        }
+        .glass { background: var(--glass-bg); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); }
+        .name-col-bg { background: var(--bg-color) !important; z-index: 50; }
+        .sticky-left { position: sticky; left: 0; z-index: 40; }
 
         .holiday-cell { background-color: var(--holiday-color) !important; }
         .weekend-cell { background-color: var(--weekend-color) !important; }
-        
-        .row-separator td {
-            border-bottom: 1px solid var(--separator-color);
-        }
+        .warning-cell { background-color: rgba(225, 29, 72, 0.15) !important; }
 
-        .warning-cell {
-            background-color: rgba(225, 29, 72, 0.15) !important;
-            box-shadow: inset 0 0 15px rgba(225, 29, 72, 0.2);
-        }
+        #rosterTable { zoom: var(--zoom-factor); transform-origin: top left; }
 
-        .dragging {
-            opacity: 0.5;
-            background: rgba(59, 130, 246, 0.2) !important;
-        }
-
-        #columnOverlay, #modalOverlay, #addEmpOverlay, #editEmpOverlay, #shiftModalOverlay, #yearViewOverlay, #noteModalOverlay, #toast {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
-            z-index: 200; align-items: center; justify-content: center;
-        }
-
-        #toast {
-            background: transparent;
-            backdrop-filter: none;
-            height: auto;
-            top: 1rem;
-            pointer-events: none;
-        }
-
-        #rosterTable {
-            zoom: var(--zoom-factor);
-            transform-origin: top left;
-        }
-
-        .hidden-col { display: none !important; }
-
-        .sticky-left {
-            position: sticky;
-            left: 0;
-            z-index: 40;
-        }
-
-        @media (max-width: 768px) {
-            #yearViewOverlay .glass { width: 100% !important; height: 80vh; overflow-y: auto; }
-            .name-col-bg { min-width: 140px !important; width: 140px !important; }
-        }
-
-        /* --- PRINT STYLES --- */
         @media print {
-            @page {
-                size: A3 landscape;
-                margin: 10mm;
-            }
-            body {
-                background: white !important;
-                color: black !important;
-                overflow: visible !important;
-                height: auto !important;
-            }
-            .no-print {
-                display: none !important;
-            }
-            main {
-                margin: 0 !important;
-                padding: 0 !important;
-                border: none !important;
-                background: transparent !important;
-                width: 100% !important;
-                overflow: visible !important;
-            }
-            #tableContainer {
-                overflow: visible !important;
-                height: auto !important;
-                max-height: none !important;
-            }
-            #rosterTable {
-                zoom: 1 !important; 
-                transform: none !important;
-                width: 100% !important;
-                border-collapse: collapse !important;
-                border: 1px solid black !important;
-            }
-            /* Tabellenkopf auf jeder Seite wiederholen */
-            thead {
-                display: table-header-group !important;
-            }
-            tfoot {
-                display: table-footer-group !important;
-            }
-            tr {
-                page-break-inside: avoid !important;
-            }
-            .name-col-bg {
-                background: white !important;
-                box-shadow: none !important;
-                border-right: 1px solid #000 !important;
-            }
-            th, td {
-                border: 0.5pt solid #000 !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-                color: black !important;
-            }
-            .holiday-cell { background-color: #fef3c7 !important; border: 0.5pt solid #000 !important; }
-            .weekend-cell { background-color: #f1f5f9 !important; border: 0.5pt solid #000 !important; }
-            .sticky-left, .sticky {
-                position: static !important;
-            }
-            header {
-                display: block !important;
-                border-bottom: 2px solid black !important;
-                margin-bottom: 10px !important;
-            }
-            .warning-cell { background-color: transparent !important; box-shadow: none !important; }
+            @page { size: A3 landscape; margin: 10mm; }
+            body { background: white !important; color: black !important; overflow: visible !important; }
+            .no-print { display: none !important; }
+            main { border: none !important; background: transparent !important; width: 100% !important; overflow: visible !important; }
+            #tableContainer { overflow: visible !important; height: auto !important; }
+            #rosterTable { zoom: 1 !important; width: 100% !important; border-collapse: collapse !important; border: 1px solid black !important; }
+            thead { display: table-header-group !important; }
+            tr { page-break-inside: avoid !important; }
+            .name-col-bg { background: white !important; border-right: 1px solid black !important; }
+            th, td { border: 0.5pt solid black !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; color: black !important; }
+            .sticky-left { position: static !important; }
         }
 
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        .animate-spin-fast { animation: spin 0.8s linear infinite; }
-
-        input[type=range].zoom-slider::-webkit-slider-runnable-track {
-            background: rgba(255,255,255,0.1);
-            height: 4px;
-            border-radius: 2px;
-        }
-        input[type=range].zoom-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 12px;
-            width: 12px;
-            border-radius: 50%;
-            background: #3b82f6;
-            margin-top: -4px;
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(120, 120, 120, 0.3); border-radius: 10px; }
     </style>
 </head>
 <body class="h-screen flex flex-col">
 
-    <div id="toast">
+    <div id="toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-[300] items-center">
         <div class="glass px-6 py-3 rounded-2xl shadow-2xl border border-white/20 flex items-center gap-3">
-            <div id="toastIcon" class="text-blue-500"></div>
-            <span id="toastMessage" class="text-sm font-bold text-current"></span>
+            <div id="toastIcon"></div>
+            <span id="toastMessage" class="text-sm font-bold"></span>
         </div>
     </div>
 
-    <!-- Modale -->
-    <div id="yearViewOverlay" onclick="closeYearModal()">
-        <div class="glass p-8 rounded-3xl w-full md:w-[450px] shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
-            <h3 class="text-xl font-black text-center flex items-center justify-center gap-3 text-current">
-                <i data-lucide="calendar"></i> Jahresplaner <span id="yearDisplay" class="text-blue-500">2026</span>
-            </h3>
-            <div class="grid grid-cols-3 gap-3" id="monthGrid"></div>
-            <div class="flex gap-2 justify-center border-t border-white/10 pt-4">
-                <button onclick="changeYear(-1)" class="p-2 glass rounded-xl text-current transition-all"><i data-lucide="chevron-left"></i></button>
-                <button onclick="closeYearModal()" class="px-8 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-lg">Schließen</button>
-                <button onclick="changeYear(1)" class="p-2 glass rounded-xl text-current transition-all"><i data-lucide="chevron-right"></i></button>
+    <!-- HEADER -->
+    <header class="glass m-2 md:m-4 p-3 rounded-2xl shadow-2xl no-print flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3 shrink-0">
+            <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-500 rounded-xl flex items-center justify-center">
+                <i data-lucide="calendar" class="text-white" size="20"></i>
+            </div>
+            <div class="hidden sm:block">
+                <h1 class="text-lg font-black tracking-tight leading-none mb-0.5">Dienstplan PRO</h1>
+                <p class="text-[9px] text-slate-500 uppercase font-bold tracking-wider" id="syncLabel">Helios Duisburg</p>
             </div>
         </div>
-    </div>
 
-    <!-- Einstellungen Modal -->
-    <div id="columnOverlay" onclick="closeColumnModal(event)">
-        <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-4 overflow-y-auto max-h-[90vh]" onclick="event.stopPropagation()">
-            <h3 class="text-lg font-bold text-center text-current">Einstellungen</h3>
-            <div class="flex flex-col gap-3">
-                <button onclick="loadCloudData()" class="w-full py-3 bg-blue-600/20 text-blue-400 rounded-xl text-[11px] font-black border border-blue-500/20 flex items-center justify-center gap-2 transition-all active:scale-95">
-                    <i data-lucide="refresh-cw" size="14"></i> Cloud-Daten erzwingen
+        <div class="flex items-center gap-2 bg-black/5 p-1 rounded-2xl border border-white/5 ml-auto">
+            <div class="flex items-center bg-black/20 rounded-xl p-0.5 border border-white/5 shrink-0 mr-1">
+                <button id="viewMonthBtn" onclick="toggleViewMode('month')" class="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all">Monat</button>
+                <button id="viewWeekBtn" onclick="toggleViewMode('week')" class="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all">Woche</button>
+            </div>
+
+            <div class="flex items-center bg-black/20 rounded-xl p-0.5 border border-white/5 shrink-0">
+                <button onclick="handleNavigation(-1)" class="p-1.5 hover:bg-white/10 rounded-lg"><i data-lucide="chevron-left" size="14"></i></button>
+                <div id="monthLabel" onclick="openYearModal()" class="px-3 font-black text-[11px] uppercase cursor-pointer min-w-[110px] text-center">Monat</div>
+                <button onclick="handleNavigation(1)" class="p-1.5 hover:bg-white/10 rounded-lg"><i data-lucide="chevron-right" size="14"></i></button>
+            </div>
+
+            <div class="flex items-center gap-1 shrink-0 ml-2">
+                <button onclick="openColumnModal()" class="p-2 hover:bg-white/10 rounded-xl text-slate-400" title="Einstellungen"><i data-lucide="settings-2" size="16"></i></button>
+                <button onclick="exportToPDF()" class="px-3 py-2 bg-slate-700 text-white rounded-xl text-[11px] font-black shadow-lg flex items-center gap-2 transition-all active:scale-95">
+                    <i data-lucide="file-down" size="14"></i><span class="hidden lg:inline">Export</span>
                 </button>
-                
-                <div class="border-y border-white/10 py-4 my-2">
-                    <p class="text-[10px] uppercase font-black text-slate-500 mb-3">Dienst-Konfiguration</p>
-                    <button onclick="openShiftModal()" class="w-full py-3 bg-emerald-600/20 text-emerald-400 rounded-xl text-[11px] font-black border border-emerald-500/20 flex items-center justify-center gap-2 transition-all active:scale-95">
-                        <i data-lucide="edit-3" size="14"></i> Dienste erstellen & anpassen
-                    </button>
-                </div>
-
-                <div>
-                    <p class="text-[10px] uppercase font-black text-slate-500 mb-2">Infospalten</p>
-                    <div class="flex flex-col gap-2" id="columnToggleList"></div>
-                </div>
-                <div>
-                    <p class="text-[10px] uppercase font-black text-slate-500 mb-2 tracking-widest mt-4">Schichten zählen</p>
-                    <div class="flex flex-wrap gap-2 pt-2" id="shiftToggleList"></div>
-                </div>
+                <button id="saveBtn" onclick="saveData()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[11px] font-black shadow-lg flex items-center gap-2 transition-all active:scale-95">
+                    <i data-lucide="save" id="saveIcon" size="14"></i><span class="hidden lg:inline">Sichern</span>
+                </button>
             </div>
-            <button onclick="closeColumnModal()" class="w-full py-4 mt-6 bg-blue-600 text-white rounded-xl font-bold shadow-xl">Fertig</button>
+        </div>
+    </header>
+
+    <div class="hidden print:block mb-4 border-b-2 border-black pb-2 px-4">
+        <h1 class="text-2xl font-bold uppercase">Dienstplan Helios Notaufnahme</h1>
+        <p class="text-sm font-black" id="printMonthLabel"></p>
+    </div>
+
+    <div class="flex flex-1 overflow-hidden relative mb-20 md:mb-0">
+        <aside class="fixed bottom-0 left-0 w-full z-[100] md:relative md:w-20 lg:w-48 p-2 md:p-0 no-print">
+            <div class="glass p-3 md:p-4 rounded-t-3xl md:rounded-2xl h-full flex flex-row md:flex-col gap-2 overflow-x-auto no-scrollbar">
+                <div id="shiftPalette" class="flex flex-row md:flex-col gap-2 items-center"></div>
+            </div>
+        </aside>
+
+        <main class="flex-1 glass m-2 md:m-4 mt-0 rounded-2xl overflow-hidden flex flex-col shadow-2xl relative">
+            <div class="overflow-x-auto overflow-y-auto flex-1 custom-scrollbar" id="tableContainer">
+                <table class="w-full border-separate border-spacing-0" id="rosterTable">
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                    <tfoot id="tableFoot" class="sticky bottom-0 z-40 bg-[var(--bg-color)]"></tfoot>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL CONTAINER (EINSTELLUNGEN) -->
+    <div id="columnOverlay" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] items-center justify-center" onclick="closeColumnModal()">
+        <div class="glass p-8 rounded-3xl w-96 shadow-2xl flex flex-col gap-4" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-bold text-center">Konfiguration</h3>
+            <button onclick="loadCloudData()" class="w-full py-3 bg-blue-600/20 text-blue-400 rounded-xl text-[11px] font-black border border-blue-500/20 flex items-center justify-center gap-2">
+                <i data-lucide="refresh-cw" size="14"></i> Cloud-Daten erzwingen
+            </button>
+            <button onclick="openShiftModal()" class="w-full py-3 bg-emerald-600/20 text-emerald-400 rounded-xl text-[11px] font-black border border-emerald-500/20 flex items-center justify-center gap-2">
+                <i data-lucide="edit-3" size="14"></i> Dienste anpassen
+            </button>
+            <div class="border-t border-white/10 pt-4 mt-2">
+                <p class="text-[10px] uppercase font-black text-slate-500 mb-2">Ansicht Zoom</p>
+                <input type="range" id="zoomSlider" min="0.5" max="1.5" step="0.05" value="1" oninput="adjustZoom(0)" class="w-full accent-blue-600">
+            </div>
+            <button onclick="closeColumnModal()" class="w-full py-4 mt-4 bg-blue-600 text-white rounded-xl font-bold">Schließen</button>
         </div>
     </div>
 
-    <!-- Schicht-Editor Modal -->
-    <div id="shiftModalOverlay">
-        <div class="glass p-8 rounded-3xl w-full md:w-[500px] max-h-[90vh] shadow-2xl flex flex-col gap-6 overflow-hidden" onclick="event.stopPropagation()">
-            <h3 class="text-lg font-black text-center text-current flex items-center justify-center gap-2">
-                <i data-lucide="list-plus"></i> Dienstarten anpassen
-            </h3>
+    <!-- SHIFT MODAL -->
+    <div id="shiftModalOverlay" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] items-center justify-center">
+        <div class="glass p-8 rounded-3xl w-[500px] max-h-[90vh] shadow-2xl flex flex-col gap-6 overflow-hidden" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-black text-center flex items-center justify-center gap-2"><i data-lucide="list-plus"></i> Dienste</h3>
             <div class="overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3" id="shiftTypeListContainer"></div>
-            
-            <div class="border-t border-white/10 pt-4 flex flex-col gap-4 text-current">
-                <p class="text-[10px] uppercase font-black text-slate-500">Neuen Dienst hinzufügen</p>
-                <div class="grid grid-cols-3 gap-2">
-                    <input type="text" id="newShiftKey" placeholder="Kürzel (z.B. ZD)" class="bg-black/5 border border-white/10 rounded-xl p-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
-                    <input type="text" id="newShiftLabel" placeholder="Bezeichnung" class="bg-black/5 border border-white/10 rounded-xl p-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
-                    <input type="number" step="0.1" id="newShiftHours" placeholder="Stunden" class="bg-black/5 border border-white/10 rounded-xl p-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none">
-                </div>
-                <button onclick="addShiftType()" class="w-full py-3 bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all shadow-lg active:scale-95">
-                    Dienst hinzufügen
-                </button>
-            </div>
-            <button onclick="closeShiftModal()" class="py-4 rounded-xl bg-blue-600 text-white font-bold shadow-xl active:scale-95">Speichern & Schließen</button>
-        </div>
-    </div>
-
-    <!-- Main Header -->
-    <div class="flex flex-col h-full w-full relative z-10 overflow-hidden">
-        <header class="glass m-2 md:m-4 p-3 rounded-2xl shadow-2xl no-print flex items-center justify-between gap-4">
-            <div class="flex items-center gap-3 shrink-0">
-                <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-                    <i data-lucide="calendar" class="text-white" size="20"></i>
-                </div>
-                <div class="hidden sm:block">
-                    <h1 class="text-lg font-black tracking-tight leading-none mb-0.5">Dienstplan <span class="text-blue-400 italic text-sm font-bold">PRO</span></h1>
-                    <p class="text-[9px] text-slate-500 uppercase font-bold tracking-wider" id="syncLabel">Helios Duisburg</p>
-                </div>
-            </div>
-
-            <div class="flex items-center gap-2 bg-black/5 p-1 rounded-2xl border border-white/5 ml-auto overflow-x-auto no-scrollbar">
-                
-                <div class="flex items-center bg-black/20 rounded-xl p-0.5 border border-white/5 shrink-0 mr-1">
-                    <button id="viewMonthBtn" onclick="toggleViewMode('month')" class="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-2">
-                        <i data-lucide="calendar-days" size="12"></i> Monat
-                    </button>
-                    <button id="viewWeekBtn" onclick="toggleViewMode('week')" class="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-2">
-                        <i data-lucide="calendar-range" size="12"></i> Woche
-                    </button>
-                </div>
-
-                <div class="hidden lg:flex items-center gap-2 px-3 py-1 bg-black/20 rounded-xl border border-white/5 shrink-0">
-                    <button onclick="adjustZoom(-0.05)" class="text-slate-500 hover:text-white transition-colors"><i data-lucide="minus-circle" size="14"></i></button>
-                    <input type="range" id="zoomSlider" min="0.5" max="1.5" step="0.05" value="1" oninput="adjustZoom(0)" class="w-16 h-1 appearance-none bg-white/10 rounded-full zoom-slider cursor-pointer accent-blue-500">
-                    <button onclick="adjustZoom(0.05)" class="text-slate-500 hover:text-white transition-colors"><i data-lucide="plus-circle" size="14"></i></button>
-                    <span id="zoomText" class="text-[9px] font-black text-blue-500 min-w-[28px]">100%</span>
-                </div>
-
-                <div class="flex items-center bg-black/20 rounded-xl p-0.5 border border-white/5 shrink-0">
-                    <button onclick="handleNavigation(-1)" class="p-1.5 hover:bg-white/10 rounded-lg text-current transition-colors"><i data-lucide="chevron-left" size="14"></i></button>
-                    <div id="monthLabel" onclick="openYearModal()" class="px-3 font-black text-[11px] uppercase cursor-pointer hover:text-blue-400 min-w-[110px] text-center text-current transition-all">Monat</div>
-                    <button onclick="handleNavigation(1)" class="p-1.5 hover:bg-white/10 rounded-lg text-current transition-colors"><i data-lucide="chevron-right" size="14"></i></button>
-                </div>
-                
-                <div id="headerWorkingDays" class="px-3 py-2 bg-blue-500/10 text-blue-400 text-[10px] font-black rounded-xl border border-blue-500/20 hidden md:block shrink-0">
-                    -- Arbeitstage
-                </div>
-
-                <div class="flex items-center gap-1 shrink-0">
-                    <button onclick="openColumnModal()" class="p-2 hover:bg-white/10 rounded-xl text-slate-400 transition-all" title="Einstellungen"><i data-lucide="settings-2" size="16"></i></button>
-                    <button onclick="openAddEmpOverlay()" class="p-2 hover:bg-emerald-500/20 rounded-xl text-emerald-500 transition-all" title="Personal hinzufügen"><i data-lucide="user-plus" size="16"></i></button>
-                    <button id="toggleWarningBtn" onclick="toggleWarnings()" class="p-2 hover:bg-rose-500/20 rounded-xl text-rose-500 transition-all" title="Warnungen"><i data-lucide="alert-triangle" size="16"></i></button>
-                    <button id="themeToggle" onclick="toggleTheme()" class="p-2 hover:bg-white/10 rounded-xl text-slate-400 transition-all"><i data-lucide="moon" id="themeIcon" size="16"></i></button>
-                    
-                    <button onclick="exportToPDF()" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-[11px] font-black shadow-lg flex items-center gap-2 transition-all active:scale-95">
-                        <i data-lucide="file-down" size="14"></i>
-                        <span class="hidden lg:inline">Exportieren</span>
-                    </button>
-
-                    <button id="saveBtn" onclick="saveData()" class="ml-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[11px] font-black shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all active:scale-95">
-                        <i data-lucide="save" id="saveIcon" size="14"></i>
-                        <span class="hidden lg:inline">Sichern</span>
-                    </button>
-                </div>
-            </div>
-        </header>
-
-        <!-- Druck-Vorschau Header -->
-        <div class="hidden print:block mb-4 border-b-2 border-slate-900 pb-2">
-            <div class="flex justify-between items-end">
-                <div>
-                    <h1 class="text-2xl font-bold">Dienstplan Helios Duisburg - Notaufnahme</h1>
-                    <p class="text-sm text-slate-600 uppercase font-black tracking-widest" id="printMonthLabel">Monat Jahr</p>
-                </div>
-                <div class="text-right text-xs">
-                    <p>Erstellt am: <span id="printCurrentDate"></span></p>
-                </div>
-            </div>
-        </div>
-
-        <div class="flex flex-1 overflow-hidden relative mb-20 md:mb-0">
-            <aside id="mobileShiftContainer" class="fixed bottom-0 left-0 w-full z-[100] md:relative md:w-20 lg:w-48 p-2 md:p-0 no-print">
-                <div class="glass p-3 md:p-4 rounded-t-3xl md:rounded-2xl h-full flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-y-auto no-scrollbar">
-                    <div id="shiftPalette" class="flex flex-row md:flex-col gap-2 items-center"></div>
-                </div>
-            </aside>
-
-            <main class="flex-1 glass m-2 md:m-4 mt-0 rounded-2xl md:rounded-3xl overflow-hidden flex flex-col shadow-2xl relative">
-                <div class="overflow-x-auto overflow-y-auto flex-1 custom-scrollbar" id="tableContainer">
-                    <table class="w-full border-separate border-spacing-0" id="rosterTable">
-                        <thead id="tableHead"></thead>
-                        <tbody id="tableBody" class="divide-y divide-black/5"></tbody>
-                        <tfoot id="tableFoot" class="sticky bottom-0 z-40"></tfoot>
-                    </table>
-                </div>
-            </main>
-        </div>
-    </div>
-
-    <!-- Modale für Mitarbeiter -->
-    <div id="editEmpOverlay">
-        <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
-            <h3 class="text-lg font-bold text-center text-current">Mitarbeiter bearbeiten</h3>
-            <div class="flex flex-col gap-4 text-current">
-                <input type="text" id="editEmpNameInput" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none">
-                <input type="text" id="editEmpRoleInput" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none">
-            </div>
-            <div class="flex gap-2">
-                <button onclick="closeEditModal()" class="flex-1 py-3 rounded-xl bg-black/5 text-current">Abbrechen</button>
-                <button onclick="applyEditEmployee()" class="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold">Speichern</button>
-            </div>
-            <button onclick="confirmDeleteEmployee()" class="w-full py-3 border border-rose-500 text-rose-500 rounded-xl text-xs font-bold mt-2">Mitarbeiter entfernen</button>
-        </div>
-    </div>
-
-    <div id="modalOverlay">
-        <div class="glass p-8 rounded-3xl w-full md:w-80 shadow-2xl flex flex-col gap-6">
-            <h3 class="text-lg font-bold text-center text-current" id="modalTitle">Anpassung</h3>
-            <div class="flex flex-col gap-2 text-current">
-                <div class="flex justify-between text-xs font-mono">
-                    <span id="modalEmpName">Name</span>
-                    <span id="sliderValueText" class="text-blue-500 font-bold">100%</span>
-                </div>
-                <input type="range" id="statusSlider" min="-100" max="250" step="1" oninput="updateSliderLabel()" class="w-full h-4 bg-black/10 rounded-lg appearance-none cursor-pointer accent-blue-600">
-            </div>
-            <div class="flex gap-2">
-                <button onclick="closeModal()" class="flex-1 py-3 rounded-xl bg-black/5 text-current">Abbrechen</button>
-                <button onclick="applySliderValue()" class="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold">Anwenden</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="addEmpOverlay">
-        <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-4 text-current">
-            <h3 class="text-lg font-bold text-center">Neuer Kollege</h3>
-            <div class="flex flex-col gap-3">
-                <input type="text" id="newEmpName" placeholder="Name, Vorname" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none">
-                <input type="text" id="newEmpRole" placeholder="Rolle" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none">
-                <input type="number" id="newEmpStatus" value="100" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none">
-            </div>
-            <div class="flex gap-2">
-                <button onclick="closeAddEmpOverlay()" class="flex-1 py-3 rounded-xl bg-black/5 text-current">Abbrechen</button>
-                <button onclick="addNewEmployee()" class="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-bold">Hinzufügen</button>
-            </div>
+            <button onclick="closeShiftModal()" class="py-4 rounded-xl bg-blue-600 text-white font-bold">Speichern</button>
         </div>
     </div>
 
     <script>
         // --- State ---
         let db, auth, user;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'helios-notaufnahme-duisburg';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'helios-duisburg-notaufnahme-v1';
         
-        let viewSettings = JSON.parse(localStorage.getItem('view_settings')) || { status: true, soll: true, ist: true, days: true, diff: true, prev: true, total: true };
-        let shiftCounterSettings = JSON.parse(localStorage.getItem('shift_counter_settings')) || { FD: true, SD: true, ND: true };
-        
-        let SHIFT_TYPES = JSON.parse(localStorage.getItem('helios_shifts')) || {
-            FD: { label: 'Frühdienst', color: 'bg-cyan-400/90', textColor: 'text-cyan-950', hours: 7.7 },
-            SD: { label: 'Spätdienst', color: 'bg-fuchsia-500/90', textColor: 'text-white', hours: 7.7 },
-            ZD: { label: 'Zwischendienst', color: 'bg-indigo-500/90', textColor: 'text-white', hours: 7.7 },
-            ND: { label: 'Nachtdienst', color: 'bg-orange-600/90', textColor: 'text-white', hours: 9.5 },
-            LT: { label: 'Leitungstag', color: 'bg-emerald-400/90', textColor: 'text-emerald-950', hours: 7.7 },
-            X:  { label: 'Frei', color: 'bg-white/10', textColor: 'text-slate-500', hours: 0 },
-            U:  { label: 'Urlaub', color: 'bg-yellow-400/90', textColor: 'text-yellow-950', hours: 7.7 },
-            K:  { label: 'Krank', color: 'bg-rose-500/90', textColor: 'text-white', hours: 7.7 }
+        // Deine Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyD3HcZOIv6Wyg3_5xoBnSnz-Eb4fgLr0SA",
+            authDomain: "dienstplanprogramm.firebaseapp.com",
+            projectId: "dienstplanprogramm",
+            storageBucket: "dienstplanprogramm.firebasestorage.app",
+            messagingSenderId: "193664964493",
+            appId: "1:193664964493:web:e99e822739cb13c8df0fc4"
         };
 
         const INITIAL_EMPLOYEES = [
-            { id: '1', name: 'Adams, Hendrik', role: 'Stationsleitung', status: '100%', prevOvertime: 0 },
-            { id: '2', name: 'Fuchsa, Jennifer', role: 'stellv. Leitung', status: '100%', prevOvertime: 0 },
-            { id: '3', name: 'Günter, Stephanie', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
-            { id: '4', name: 'Blank, Alexandra', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
-            { id: '5', name: 'Friedrich, Kristina', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
-            { id: '6', name: 'Weienberg, Hanna', role: 'Fachkraft', status: '100%', prevOvertime: 0 },
-            { id: '7', name: 'Hackmann, Matthias', role: 'Pflegekraft', status: '90%', prevOvertime: 0 },
-            { id: '8', name: 'Buchmüller, Jörg', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
-            { id: '9', name: 'Rösken, Katrin', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
-            { id: '10', name: 'Theißen, Jennifer', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
-            { id: '11', name: 'Daniels, Justin', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
-            { id: '12', name: 'Kaymaz, Melda', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
-            { id: '13', name: 'Kühn, Philipp', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
-            { id: '14', name: 'Strachanski, Julia', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
-            { id: '15', name: 'Preußner, Pauline', role: 'Auszubildende', status: '100%', prevOvertime: 0 },
-            { id: '16', name: 'Bielok, Lara', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
-            { id: '17', name: 'Wüstkamp, Bianca', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
-            { id: '18', name: 'Bondzau, Martina', role: 'Pflegekraft', status: '100%', prevOvertime: 0 }
+            { id: '1', name: 'Adams, Hendrik', role: 'Stationsleitung', status: '100%' },
+            { id: '2', name: 'Fuchsa, Jennifer', role: 'stellv. Leitung', status: '100%' },
+            { id: '3', name: 'Günter, Stephanie', role: 'Pflegekraft', status: '100%' },
+            { id: '4', name: 'Blank, Alexandra', role: 'Pflegekraft', status: '100%' },
+            { id: '5', name: 'Friedrich, Kristina', role: 'Pflegekraft', status: '100%' },
+            { id: '6', name: 'Weienberg, Hanna', role: 'Fachkraft', status: '100%' },
+            { id: '7', name: 'Hackmann, Matthias', role: 'Pflegekraft', status: '90%' },
+            { id: '8', name: 'Buchmüller, Jörg', role: 'Pflegekraft', status: '100%' },
+            { id: '9', name: 'Rösken, Katrin', role: 'Pflegekraft', status: '100%' },
+            { id: '10', name: 'Theißen, Jennifer', role: 'Pflegekraft', status: '100%' },
+            { id: '11', name: 'Daniels, Justin', role: 'Pflegekraft', status: '100%' },
+            { id: '12', name: 'Kaymaz, Melda', role: 'Pflegekraft', status: '100%' },
+            { id: '13', name: 'Kühn, Philipp', role: 'Pflegekraft', status: '100%' },
+            { id: '14', name: 'Strachanski, Julia', role: 'Pflegekraft', status: '100%' },
+            { id: '15', name: 'Preußner, Pauline', role: 'Azubi', status: '100%' },
+            { id: '16', name: 'Bielok, Lara', role: 'Pflegekraft', status: '100%' },
+            { id: '17', name: 'Wüstkamp, Bianca', role: 'Pflegekraft', status: '100%' },
+            { id: '18', name: 'Bondzau, Martina', role: 'Pflegekraft', status: '100%' }
         ];
+
+        let SHIFT_TYPES = JSON.parse(localStorage.getItem('helios_shifts')) || {
+            FD: { label: 'Frühdienst', color: 'bg-cyan-400', textColor: 'text-cyan-950', hours: 7.7 },
+            SD: { label: 'Spätdienst', color: 'bg-fuchsia-500', textColor: 'text-white', hours: 7.7 },
+            ZD: { label: 'Zwischendienst', color: 'bg-indigo-500', textColor: 'text-white', hours: 7.7 },
+            ND: { label: 'Nachtdienst', color: 'bg-orange-600', textColor: 'text-white', hours: 9.5 },
+            U:  { label: 'Urlaub', color: 'bg-yellow-400', textColor: 'text-yellow-950', hours: 7.7 },
+            X:  { label: 'Frei', color: 'bg-white/10', textColor: 'text-slate-500', hours: 0 }
+        };
 
         let EMPLOYEES = JSON.parse(localStorage.getItem('helios_employees')) || INITIAL_EMPLOYEES;
         let roster = JSON.parse(localStorage.getItem('helios_roster')) || {};
-        let rosterNotes = JSON.parse(localStorage.getItem('helios_roster_notes')) || {};
-        
         let currentDate = new Date(2026, 3, 1);
         let activeShift = 'FD';
-        let showWarnings = false;
-        let editingEmpIndex = null;
-        let draggingIndex = null;
-        let editingField = 'status';
-        let noteTarget = null;
-        let viewMode = 'month'; 
-        let weekStartIndex = 0; 
+        let viewMode = 'month';
+        let weekStartIndex = 0;
 
-        // --- Firebase Integration ---
+        // --- Firebase Core Logic ---
         async function initFirebase() {
             if (!window.firebaseCore) return;
             const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, getFirestore, onAuthStateChanged } = window.firebaseCore;
-            const configStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
-            if (!configStr) return;
+            
             try {
-                const app = initializeApp(JSON.parse(configStr));
+                const app = initializeApp(firebaseConfig);
                 auth = getAuth(app); db = getFirestore(app);
-                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                if (token) await signInWithCustomToken(auth, token);
-                else await signInAnonymously(auth);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
                 onAuthStateChanged(auth, (u) => {
                     user = u;
-                    if (user) { document.getElementById('syncLabel').innerText = `Sync: Aktiv`; loadCloudData(); }
+                    if (user) {
+                        document.getElementById('syncLabel').innerText = `Sync: Online`;
+                        // Laden beim Start!
+                        loadCloudData();
+                    }
                 });
-            } catch (e) { console.error("Firebase Fehler:", e); }
+            } catch (e) { showToast("DB-Fehler", "alert-circle"); }
         }
 
         async function loadCloudData() {
@@ -517,310 +265,123 @@
                     const data = snap.data();
                     if (data.employees) EMPLOYEES = data.employees;
                     if (data.roster) roster = data.roster;
-                    if (data.rosterNotes) rosterNotes = data.rosterNotes;
                     if (data.shifts) SHIFT_TYPES = data.shifts;
                     renderRoster();
+                    showToast("Daten geladen", "cloud");
                 }
-            } catch (e) { console.error("Cloud-Laden Fehler:", e); }
+            } catch (e) { showToast("Ladefehler", "alert-triangle"); }
         }
 
         async function saveData() {
-            localStorage.setItem('helios_employees', JSON.stringify(EMPLOYEES));
-            localStorage.setItem('helios_roster', JSON.stringify(roster));
-            localStorage.setItem('helios_roster_notes', JSON.stringify(rosterNotes));
-            localStorage.setItem('helios_shifts', JSON.stringify(SHIFT_TYPES));
             const saveIcon = document.getElementById('saveIcon');
             saveIcon.classList.add('animate-spin-fast');
             if (user && db) {
                 const { doc, setDoc, serverTimestamp } = window.firebaseCore;
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rosterPlan', 'main');
                 try {
-                    await setDoc(docRef, { employees: EMPLOYEES, roster: roster, rosterNotes: rosterNotes, shifts: SHIFT_TYPES, updatedAt: serverTimestamp() }, { merge: true });
-                    showToast("Cloud-Sync erfolgreich", "cloud-check");
-                } catch (e) { showToast("Sync fehlgeschlagen", "alert-triangle"); }
-            } else { showToast("Lokal gesichert", "save"); }
+                    await setDoc(docRef, { employees: EMPLOYEES, roster: roster, shifts: SHIFT_TYPES, updatedAt: serverTimestamp() }, { merge: true });
+                    showToast("Cloud gesichert", "cloud-check");
+                } catch (e) { showToast("Fehler", "alert-triangle"); }
+            }
             setTimeout(() => saveIcon.classList.remove('animate-spin-fast'), 800);
         }
 
-        // --- Export & View Control ---
-        function toggleViewMode(mode) {
-            viewMode = mode; weekStartIndex = 0;
-            updateViewButtons(); renderRoster();
-        }
-
+        // --- View & Navigation ---
+        function toggleViewMode(mode) { viewMode = mode; weekStartIndex = 0; updateViewButtons(); renderRoster(); }
         function updateViewButtons() {
             const mBtn = document.getElementById('viewMonthBtn');
             const wBtn = document.getElementById('viewWeekBtn');
-            if(viewMode === 'month') {
-                mBtn.className = "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-2 bg-blue-600 text-white shadow-lg";
-                wBtn.className = "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-2 text-slate-500 hover:text-white";
-            } else {
-                wBtn.className = "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-2 bg-blue-600 text-white shadow-lg";
-                mBtn.className = "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-2 text-slate-500 hover:text-white";
+            const active = "bg-blue-600 text-white shadow-lg";
+            const inactive = "text-slate-500 hover:text-white";
+            mBtn.className = viewMode === 'month' ? `px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${active}` : `px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${inactive}`;
+            wBtn.className = viewMode === 'week' ? `px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${active}` : `px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${inactive}`;
+        }
+        function handleNavigation(dir) {
+            if (viewMode === 'month') { currentDate.setMonth(currentDate.getMonth() + dir); }
+            else { 
+                const last = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+                weekStartIndex += dir * 7;
+                if (weekStartIndex < 0) { currentDate.setMonth(currentDate.getMonth() - 1); weekStartIndex = 0; }
+                else if (weekStartIndex >= last) { currentDate.setMonth(currentDate.getMonth() + 1); weekStartIndex = 0; }
             }
-        }
-
-        function handleNavigation(direction) {
-            if(viewMode === 'month') { changeMonth(direction); } else { changeWeek(direction); }
-        }
-
-        function changeWeek(direction) {
-            const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-            let nextIndex = weekStartIndex + (direction * 7);
-            if(nextIndex < 0) { changeMonth(-1); weekStartIndex = 0; } 
-            else if(nextIndex >= lastDay) { changeMonth(1); weekStartIndex = 0; } 
-            else { weekStartIndex = nextIndex; renderRoster(); }
+            renderRoster();
         }
 
         function exportToPDF() {
-            const oldMode = viewMode;
-            const oldWeekIndex = weekStartIndex;
-            
-            // Für den Export IMMER Monatsansicht erzwingen
-            viewMode = 'month';
-            renderRoster();
-
+            const oldMode = viewMode; viewMode = 'month'; renderRoster();
             document.getElementById('printMonthLabel').innerText = currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' });
-            document.getElementById('printCurrentDate').innerText = new Date().toLocaleDateString('de-DE');
-            
-            // Kurz warten für Rendering, dann Drucken
-            setTimeout(() => {
-                window.print();
-                // Zurück zur vorherigen Ansicht
-                viewMode = oldMode;
-                weekStartIndex = oldWeekIndex;
-                renderRoster();
-            }, 500);
+            setTimeout(() => { window.print(); viewMode = oldMode; renderRoster(); }, 500);
         }
-
-        // --- Drag & Drop ---
-        function handleDragStart(e, index) { draggingIndex = index; e.currentTarget.classList.add('dragging'); }
-        function handleDragOver(e) { e.preventDefault(); }
-        function handleDrop(e, index) {
-            e.preventDefault();
-            if (draggingIndex === null || draggingIndex === index) return;
-            const movedItem = EMPLOYEES.splice(draggingIndex, 1)[0];
-            EMPLOYEES.splice(index, 0, movedItem);
-            draggingIndex = null; renderRoster(); saveData();
-        }
-        function handleDragEnd(e) { e.currentTarget.classList.remove('dragging'); }
 
         // --- Core Rendering ---
         function renderRoster() {
             const year = currentDate.getFullYear(), month = currentDate.getMonth();
             const allDays = []; const d = new Date(year, month, 1);
             while (d.getMonth() === month) { allDays.push(new Date(d)); d.setDate(d.getDate() + 1); }
+            const visibleDays = viewMode === 'month' ? allDays : allDays.slice(weekStartIndex, weekStartIndex + 7);
             
-            let visibleDays = viewMode === 'month' ? allDays : allDays.slice(weekStartIndex, weekStartIndex + 7);
+            document.getElementById('monthLabel').innerText = currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' }) + (viewMode === 'week' ? ` | W${Math.floor(weekStartIndex/7)+1}` : '');
 
-            const holidays = getHolidaysNRW(year);
-            const workDays = calculateWorkingDays(year, month);
-            const monthSoll = workDays * 7.7;
-            
-            const monthText = currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' });
-            document.getElementById('monthLabel').innerText = viewMode === 'month' ? monthText : `${monthText} | W${Math.floor(weekStartIndex/7)+1}`;
-            document.getElementById('headerWorkingDays').innerText = `${workDays} Arbeitstage`;
-            
-            const dailyCounts = {};
-            allDays.forEach(day => {
-                const k = day.toISOString().split('T')[0];
-                dailyCounts[k] = {}; 
-                Object.keys(SHIFT_TYPES).forEach(s => dailyCounts[k][s] = 0);
-                EMPLOYEES.forEach(e => { 
-                    const s = (roster[e.id] || {})[k]; 
-                    if (s && dailyCounts[k][s] !== undefined) dailyCounts[k][s]++; 
-                });
-            });
-
-            const head = document.getElementById('tableHead');
-            const hidden = (k) => viewSettings[k] ? '' : 'hidden-col';
-            let headHTML = `<tr>
-                <th class="p-3 text-left text-[10px] font-black border-b border-black/10 sticky-left name-col-bg uppercase text-current min-w-[140px]">KOLLEGE</th>
-                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 ${hidden('status')}">VZ</th>
-                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 ${hidden('soll')}">Soll</th>
-                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 ${hidden('ist')}">Ist</th>
-                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 ${hidden('diff')}">+/-</th>
-                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 ${hidden('prev')}">Vmt</th>`;
-            
+            let headHTML = `<tr><th class="p-3 text-left text-[10px] font-black sticky-left name-col-bg border-b border-black/10 min-w-[140px]">MITARBEITER</th><th class="p-2 border-b border-black/10 text-[10px] font-black">IST</th>`;
             visibleDays.forEach(day => {
-                const k = day.toISOString().split('T')[0];
-                const isH = !!holidays[k], isW = day.getDay() === 0 || day.getDay() === 6;
-                const isWarn = showWarnings && ((dailyCounts[k].FD || 0) < 2 || (dailyCounts[k].SD || 0) < 2 || (dailyCounts[k].ND || 0) < 2);
-                headHTML += `<th class="p-2 border-b border-black/5 min-w-[40px] ${isH ? 'holiday-cell' : (isW ? 'weekend-cell' : '')} ${isWarn ? 'warning-cell' : ''}">
+                const isW = day.getDay() === 0 || day.getDay() === 6;
+                headHTML += `<th class="p-2 border-b border-black/10 min-w-[40px] ${isW ? 'weekend-cell' : ''}">
                     <div class="flex flex-col items-center">
-                        <span class="text-[8px] opacity-50 uppercase text-slate-500">${day.toLocaleDateString('de-DE', { weekday: 'short' })}</span>
-                        <span class="text-xs font-black ${isH ? 'text-orange-500' : ''}">${day.getDate()}</span>
+                        <span class="text-[8px] opacity-50 uppercase">${day.toLocaleDateString('de-DE', { weekday: 'short' })}</span>
+                        <span class="text-xs font-black">${day.getDate()}</span>
                     </div>
                 </th>`;
             });
-            head.innerHTML = headHTML + `</tr>`;
+            document.getElementById('tableHead').innerHTML = headHTML + `</tr>`;
 
-            const body = document.getElementById('tableBody'); body.innerHTML = '';
+            let bodyHTML = "";
             EMPLOYEES.forEach((emp, idx) => {
-                const tr = document.createElement('tr');
-                tr.className = 'row-separator hover:bg-[var(--row-hover)] text-current cursor-move transition-colors';
-                tr.draggable = true;
-                tr.ondragstart = (e) => handleDragStart(e, idx);
-                tr.ondragover = (e) => handleDragOver(e);
-                tr.ondrop = (e) => handleDrop(e, idx);
-                tr.ondragend = (e) => handleDragEnd(e);
-
-                let ist = 0; const eRost = roster[emp.id] || {}, eNote = rosterNotes[emp.id] || {};
-                allDays.forEach(day => {
-                    const k = day.toISOString().split('T')[0]; const s = eRost[k];
-                    if (s && SHIFT_TYPES[s]) ist += SHIFT_TYPES[s].hours;
-                });
-                const soll = monthSoll * (parseInt(emp.status) / 100);
+                let ist = 0; const eRost = roster[emp.id] || {};
+                allDays.forEach(day => { const k = day.toISOString().split('T')[0]; if (eRost[k] && SHIFT_TYPES[eRost[k]]) ist += SHIFT_TYPES[eRost[k]].hours; });
+                
                 let dHTML = "";
                 visibleDays.forEach(day => {
-                    const k = day.toISOString().split('T')[0]; const s = eRost[k], n = eNote[k];
-                    const isWarn = showWarnings && ((dailyCounts[k].FD || 0) < 2 || (dailyCounts[k].SD || 0) < 2 || (dailyCounts[k].ND || 0) < 2);
-                    dHTML += `<td onclick="handleCellClick('${emp.id}', '${k}', '${emp.name}')" class="p-0.5 border-r border-black/5 relative ${holidays[k] ? 'holiday-cell' : (day.getDay()===0||day.getDay()===6 ? 'weekend-cell' : '')} ${isWarn ? 'warning-cell' : ''}">
-                        <div class="h-8 w-full rounded-lg flex flex-col items-center justify-center transition-all ${s ? `${SHIFT_TYPES[s].color} ${SHIFT_TYPES[s].textColor} shadow-md` : 'hover:bg-blue-500/5'}">
-                            <span class="text-[10px] font-black">${s || ''}</span>
-                            ${n ? `<span class="text-[6px] truncate max-w-[30px] opacity-70">${n}</span>` : ''}
-                        </div>
+                    const k = day.toISOString().split('T')[0]; const s = eRost[k];
+                    dHTML += `<td onclick="handleCellClick('${emp.id}', '${k}')" class="p-1 border-r border-black/5 text-center cursor-pointer">
+                        <div class="h-8 w-full rounded flex items-center justify-center text-[10px] font-black ${s ? `${SHIFT_TYPES[s].color} ${SHIFT_TYPES[s].textColor}` : 'hover:bg-blue-500/5'}">${s || ''}</div>
                     </td>`;
                 });
-                const diff = ist - soll;
-                tr.innerHTML = `<td class="p-3 sticky-left name-col-bg border-r border-black/5 shadow-xl flex items-center gap-2">
-                    <i data-lucide="grip-vertical" class="text-slate-500 opacity-30 no-print" size="12"></i>
-                    <div>
-                        <div class="font-black text-[11px] uppercase cursor-pointer hover:text-blue-500" onclick="openEditModal(${idx})">${emp.name}</div>
-                        <div class="text-[8px] text-slate-500 truncate uppercase">${emp.role}</div>
-                    </div>
-                </td>
-                <td class="p-1 text-center text-[9px] font-bold text-slate-400 ${hidden('status')}" onclick="openSliderModal(${idx}, 'status')">${emp.status}</td>
-                <td class="p-1 text-center text-[9px] font-mono text-slate-400 ${hidden('soll')}">${soll.toFixed(0)}</td>
-                <td class="p-1 text-center text-[9px] font-black ${hidden('ist')}">${ist.toFixed(0)}</td>
-                <td class="p-1 text-center text-[9px] font-black ${diff>=0?'text-emerald-500':'text-rose-500'} ${hidden('diff')}">${diff.toFixed(0)}</td>
-                <td class="p-1 text-center text-[9px] font-black text-blue-500 ${hidden('prev')}" onclick="openSliderModal(${idx}, 'prevOvertime')">${emp.prevOvertime}</td>
-                ${dHTML}`;
-                body.appendChild(tr);
+
+                bodyHTML += `<tr class="border-b border-black/5">
+                    <td class="p-3 sticky-left name-col-bg font-bold text-[11px]">${emp.name}</td>
+                    <td class="p-2 text-center text-[10px] font-black font-mono">${ist.toFixed(0)}</td>
+                    ${dHTML}
+                </tr>`;
             });
-            renderTableFooter(visibleDays, dailyCounts, hidden); renderShiftPalette(); lucide.createIcons();
+            document.getElementById('tableBody').innerHTML = bodyHTML;
+            renderShiftPalette(); lucide.createIcons();
         }
 
-        function renderTableFooter(days, dailyCounts, hidden) {
-            const foot = document.getElementById('tableFoot'); foot.innerHTML = "";
-            const active = Object.keys(SHIFT_TYPES).filter(s => shiftCounterSettings[s] && s !== 'X');
-            active.forEach((sCode) => {
-                const sInfo = SHIFT_TYPES[sCode];
-                let fHTML = `<tr class="bg-[var(--bg-color)]/95 backdrop-blur-sm text-[9px] font-black border-t border-black/5">
-                    <td class="p-2 sticky-left name-col-bg border-r border-black/5 flex items-center gap-2">
-                        <div class="w-4 h-4 rounded ${sInfo.color} flex items-center justify-center text-[8px] ${sInfo.textColor}">${sCode}</div>
-                        <span class="opacity-70 truncate uppercase tracking-tighter">${sInfo.label}</span>
-                    </td>
-                    <td colspan="5" class="p-2 border-r border-black/5 text-right opacity-50 ${hidden('status') && hidden('soll') && hidden('ist') && hidden('diff') && hidden('prev') ? 'hidden' : ''}">Summe:</td>`;
-                days.forEach(day => {
-                    const k = day.toISOString().split('T')[0], count = dailyCounts[k][sCode] || 0;
-                    const isWarn = showWarnings && (sCode === 'FD' || sCode === 'SD' || sCode === 'ND') && count < 2;
-                    fHTML += `<td class="p-1 text-center border-r border-black/5 ${day.getDay()===0||day.getDay()===6?'weekend-cell':''} ${isWarn ? 'text-rose-500 font-black underline decoration-2' : ''}">${count}</td>`;
-                });
-                foot.innerHTML += fHTML + `</tr>`;
-            });
+        function handleCellClick(empId, dateKey) {
+            if (!roster[empId]) roster[empId] = {};
+            roster[empId][dateKey] = roster[empId][dateKey] === activeShift ? null : activeShift;
+            renderRoster();
         }
 
-        // --- Interaction Modals ---
-        function openShiftModal() { renderShiftTypeList(); document.getElementById('shiftModalOverlay').style.display = 'flex'; }
-        function closeShiftModal() { document.getElementById('shiftModalOverlay').style.display = 'none'; renderRoster(); saveData(); }
-        function renderShiftTypeList() {
-            const container = document.getElementById('shiftTypeListContainer'); if(!container) return; container.innerHTML = '';
-            Object.entries(SHIFT_TYPES).forEach(([k, v]) => {
-                const div = document.createElement('div'); div.className = "flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/5 shadow-sm";
-                div.innerHTML = `<div class="w-10 h-10 rounded-lg ${v.color} flex items-center justify-center font-black ${v.textColor} shadow-md">${k}</div><div class="flex-1"><input type="text" value="${v.label}" onchange="SHIFT_TYPES['${k}'].label=this.value" class="w-full bg-black/10 text-[11px] font-bold text-current px-2 py-1 rounded outline-none"></div><div class="w-20"><input type="number" step="0.1" value="${v.hours}" onchange="SHIFT_TYPES['${k}'].hours=parseFloat(this.value)" class="w-full bg-black/10 text-[11px] font-bold text-current px-2 py-1 rounded text-center outline-none"></div><button onclick="deleteShiftType('${k}')" class="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all ${['X', 'U', 'K'].includes(k) ? 'opacity-0 pointer-events-none' : ''}"><i data-lucide="trash-2" size="16"></i></button>`;
-                container.appendChild(div);
-            }); lucide.createIcons();
-        }
-        function addShiftType() {
-            const k = document.getElementById('newShiftKey').value.toUpperCase().trim(); const l = document.getElementById('newShiftLabel').value; const h = parseFloat(document.getElementById('newShiftHours').value);
-            if(!k || SHIFT_TYPES[k]) return; SHIFT_TYPES[k] = { label: l || k, hours: h || 0, color: 'bg-blue-600', textColor: 'text-white' };
-            shiftCounterSettings[k] = true; renderShiftTypeList();
-            document.getElementById('newShiftKey').value = ''; document.getElementById('newShiftLabel').value = ''; document.getElementById('newShiftHours').value = '';
-        }
-        function deleteShiftType(k) { if(confirm(`Dienst "${k}" löschen?`)) { delete SHIFT_TYPES[k]; renderShiftTypeList(); } }
-
-        function handleCellClick(empId, dateKey, empName) {
-            if (activeShift === 'NOTE') openNoteModal(empId, dateKey, empName);
-            else { if (!roster[empId]) roster[empId] = {}; roster[empId][dateKey] = (roster[empId][dateKey] === activeShift) ? null : activeShift; renderRoster(); }
-        }
-        function toggleWarnings() { showWarnings = !showWarnings; document.getElementById('toggleWarningBtn').classList.toggle('bg-rose-500/30', showWarnings); renderRoster(); }
-        function changeMonth(o) { currentDate.setMonth(currentDate.getMonth() + o); renderRoster(); }
-        function toggleTheme() { document.body.classList.toggle('light-mode'); localStorage.setItem('theme', document.body.classList.contains('light-mode')?'light':'dark'); }
-        function openEditModal(i) { editingEmpIndex = i; const e = EMPLOYEES[i]; document.getElementById('editEmpNameInput').value = e.name; document.getElementById('editEmpRoleInput').value = e.role; document.getElementById('editEmpOverlay').style.display = 'flex'; }
-        function closeEditModal() { document.getElementById('editEmpOverlay').style.display = 'none'; }
-        function applyEditEmployee() { EMPLOYEES[editingEmpIndex].name = document.getElementById('editEmpNameInput').value; EMPLOYEES[editingEmpIndex].role = document.getElementById('editEmpRoleInput').value; renderRoster(); closeEditModal(); saveData(); }
-        function confirmDeleteEmployee() { if(confirm('Kollege entfernen?')) { EMPLOYEES.splice(editingEmpIndex, 1); renderRoster(); closeEditModal(); saveData(); } }
-        function adjustZoom(delta) { const slider = document.getElementById('zoomSlider'); let val = delta === 0 ? parseFloat(slider.value) : parseFloat(slider.value) + delta; val = Math.max(0.5, Math.min(1.5, val)); slider.value = val; document.documentElement.style.setProperty('--zoom-factor', val); document.getElementById('zoomText').innerText = Math.round(val * 100) + '%'; }
-        function openSliderModal(i, f) { editingEmpIndex = i; editingField = f; const s = document.getElementById('statusSlider'); s.value = f==='prevOvertime' ? EMPLOYEES[i].prevOvertime : parseInt(EMPLOYEES[i].status); updateSliderLabel(); document.getElementById('modalOverlay').style.display = 'flex'; }
-        function updateSliderLabel() { document.getElementById('sliderValueText').innerText = document.getElementById('statusSlider').value + (editingField==='status'?'%':'h'); }
-        function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
-        function applySliderValue() { const v = document.getElementById('statusSlider').value; if(editingField==='status') EMPLOYEES[editingEmpIndex].status = v+'%'; else EMPLOYEES[editingEmpIndex].prevOvertime = v; renderRoster(); closeModal(); saveData(); }
-        function openAddEmpOverlay() { document.getElementById('addEmpOverlay').style.display = 'flex'; }
-        function closeAddEmpOverlay() { document.getElementById('addEmpOverlay').style.display = 'none'; }
-        function addNewEmployee() { const n = document.getElementById('newEmpName').value; if(!n) return; EMPLOYEES.push({ id: Date.now().toString(), name: n, role: document.getElementById('newEmpRole').value || 'Pflege', status: document.getElementById('newEmpStatus').value+'%', prevOvertime: 0 }); renderRoster(); closeAddEmpOverlay(); saveData(); }
-        function openColumnModal() {
-            const colList = document.getElementById('columnToggleList'); if(colList) { colList.innerHTML = '';
-                const colLabels = { status: 'Vz Anteil', soll: 'Soll Std', ist: 'Ist Std', diff: 'Diff +/-', prev: 'Vormonat' };
-                Object.keys(colLabels).forEach(key => {
-                    const div = document.createElement('div'); div.className = "flex items-center justify-between p-2 bg-black/5 rounded-xl border border-white/5";
-                    div.innerHTML = `<span class="text-[11px] font-bold text-current">${colLabels[key]}</span><button onclick="toggleColumn('${key}')" class="w-10 h-5 rounded-full relative transition-all ${viewSettings[key] ? 'bg-blue-600' : 'bg-slate-300'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${viewSettings[key] ? 'right-1' : 'left-1'}"></div></button>`;
-                    colList.appendChild(div);
-                });
-            }
-            const shiftList = document.getElementById('shiftToggleList'); if(shiftList) { shiftList.innerHTML = '';
-                Object.keys(SHIFT_TYPES).forEach(key => { if(key === 'X') return;
-                    const btn = document.createElement('button'); btn.onclick = () => toggleShiftCounter(key);
-                    btn.className = `px-3 py-1.5 rounded-xl text-[9px] font-black border transition-all ${shiftCounterSettings[key] ? 'bg-blue-600 text-white border-blue-500 scale-105' : 'bg-black/5 border-white/5 text-slate-500'}`;
-                    btn.innerText = key; shiftList.appendChild(btn);
-                });
-            }
-            document.getElementById('columnOverlay').style.display = 'flex';
-        }
-        function closeColumnModal() { document.getElementById('columnOverlay').style.display = 'none'; }
-        function toggleColumn(key) { viewSettings[key] = !viewSettings[key]; localStorage.setItem('view_settings', JSON.stringify(viewSettings)); openColumnModal(); renderRoster(); }
-        function toggleShiftCounter(key) { shiftCounterSettings[key] = !shiftCounterSettings[key]; localStorage.setItem('shift_counter_settings', JSON.stringify(shiftCounterSettings)); openColumnModal(); renderRoster(); }
-        function openYearModal() { document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); document.getElementById('yearViewOverlay').style.display = 'flex'; }
-        function closeYearModal() { document.getElementById('yearViewOverlay').style.display = 'none'; }
-        function renderMonthGrid() { const container = document.getElementById('monthGrid'); container.innerHTML = ''; const months = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]; months.forEach((m, i) => { const btn = document.createElement('button'); const isCurrent = currentDate.getMonth() === i; btn.className = `p-3 rounded-xl text-[9px] font-black uppercase transition-all border ${isCurrent ? 'bg-blue-600 text-white shadow-lg' : 'bg-black/5 text-current'}`; btn.innerText = m; btn.onclick = () => { currentDate.setMonth(i); renderRoster(); closeYearModal(); }; container.appendChild(btn); }); }
-        function changeYear(o) { currentDate.setFullYear(currentDate.getFullYear() + o); document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); }
         function renderShiftPalette() {
-            const c = document.getElementById('shiftPalette'); c.innerHTML = `<button onclick="activeShift='NOTE'; renderShiftPalette()" class="flex shrink-0 items-center gap-2 p-1.5 rounded-xl border transition-all ${activeShift==='NOTE'?'bg-yellow-500/20 border-yellow-500 scale-105 shadow-lg':'bg-black/5 border-white/5'}"><div class="w-8 h-8 rounded-lg bg-yellow-500 flex items-center justify-center shadow-md"><i data-lucide="sticky-note" size="14"></i></div></button>`;
+            const c = document.getElementById('shiftPalette'); c.innerHTML = "";
             Object.entries(SHIFT_TYPES).forEach(([k, v]) => {
                 const b = document.createElement('button'); b.onclick = () => { activeShift = k; renderShiftPalette(); };
-                b.className = `flex shrink-0 items-center gap-2 p-1.5 rounded-xl border transition-all ${activeShift===k?'bg-blue-500/20 border-blue-500 scale-105 shadow-lg':'bg-black/5 border-white/5'}`;
-                b.innerHTML = `<div class="w-8 h-8 rounded-lg ${v.color} flex items-center justify-center font-black ${v.textColor} shadow-md">${k}</div>`;
+                b.className = `flex items-center gap-2 p-1.5 rounded-xl border transition-all ${activeShift===k?'bg-blue-500/20 border-blue-500 scale-105 shadow-lg':'bg-black/5 border-white/5'}`;
+                b.innerHTML = `<div class="w-8 h-8 rounded-lg ${v.color} flex items-center justify-center font-black ${v.textColor}">${k}</div>`;
                 c.appendChild(b);
-            }); lucide.createIcons();
+            });
         }
-        function getHolidaysNRW(year) {
-            const f = Math.floor, G = year % 19, C = f(year / 100), H = (C - f(C / 4) - f((8 * C + 13) / 25) + 19 * G + 15) % 30, I = H - f(H / 28) * (1 - f(29 / (H + 1)) * f((21 - G) / 11)), J = (year + f(year / 4) + I + 2 - C + f(C / 4)) % 7, L = I - J, month = 3 + f((L + 40) / 44), day = L + 28 - 31 * f(month / 4);
-            const easter = new Date(year, month - 1, day);
-            const add = (d, n) => { const r = new Date(d); r.setDate(r.getDate()+n); return r.toISOString().split('T')[0]; };
-            return { [`${year}-01-01`]:"N", [add(easter,-2)]:"K", [add(easter,1)]:"O", [`${year}-05-01`]:"T", [add(easter,39)]:"C", [add(easter,50)]:"P", [add(easter,60)]:"F", [`${year}-10-03`]:"E", [`${year}-11-01`]:"A", [`${year}-12-25`]:"W1", [`${year}-12-26`]:"W2" };
-        }
-        function calculateWorkingDays(year, month) {
-            const h = getHolidaysNRW(year); let count = 0; const d = new Date(year, month, 1);
-            while (d.getMonth() === month) {
-                if (d.getDay() !== 0 && d.getDay() !== 6 && !h[d.toISOString().split('T')[0]]) count++;
-                d.setDate(d.getDate() + 1);
-            }
-            return count;
-        }
-        function showToast(m, i) { const t = document.getElementById('toast'); document.getElementById('toastMessage').innerText = m; const iconEl = document.getElementById('toastIcon'); iconEl.innerHTML = `<i data-lucide="${i}"></i>`; lucide.createIcons(); t.style.display = 'flex'; setTimeout(()=>t.style.display='none', 3000); }
 
-        window.onload = async () => {
-            if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
-            updateViewButtons(); renderRoster(); await initFirebase();
-            window.openColumnModal = openColumnModal; window.closeColumnModal = closeColumnModal;
-            window.openYearModal = openYearModal; window.closeYearModal = closeYearModal;
-            window.changeYear = changeYear; window.toggleWarnings = toggleWarnings;
-            window.toggleColumn = toggleColumn; window.toggleShiftCounter = toggleShiftCounter;
-            window.adjustZoom = adjustZoom; window.loadCloudData = loadCloudData;
-            window.openShiftModal = openShiftModal; window.closeShiftModal = closeShiftModal;
-            window.addShiftType = addShiftType; window.deleteShiftType = deleteShiftType;
-            window.exportToPDF = exportToPDF; window.toggleViewMode = toggleViewMode;
-            window.handleNavigation = handleNavigation;
+        function adjustZoom(d) { const s = document.getElementById('zoomSlider'); let v = parseFloat(s.value); document.documentElement.style.setProperty('--zoom-factor', v); }
+        function openColumnModal() { document.getElementById('columnOverlay').classList.remove('hidden'); document.getElementById('columnOverlay').classList.add('flex'); }
+        function closeColumnModal() { document.getElementById('columnOverlay').classList.add('hidden'); }
+        function showToast(m, i) { const t = document.getElementById('toast'); document.getElementById('toastMessage').innerText = m; t.classList.remove('hidden'); t.classList.add('flex'); setTimeout(() => { t.classList.add('hidden'); t.classList.remove('flex'); }, 3000); }
+
+        window.onload = async function() {
+            await initFirebase();
+            renderRoster();
+            updateViewButtons();
         };
     </script>
 </body>
