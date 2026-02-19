@@ -13,7 +13,6 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Core in das globale Window-Objekt hängen für den Zugriff im Rest des Scripts
         window.firebaseCore = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, doc, setDoc, getDoc, collection, onSnapshot, serverTimestamp };
     </script>
 
@@ -90,6 +89,11 @@
             box-shadow: inset 0 0 15px rgba(225, 29, 72, 0.2);
         }
 
+        .dragging {
+            opacity: 0.5;
+            background: rgba(59, 130, 246, 0.2) !important;
+        }
+
         #columnOverlay, #modalOverlay, #addEmpOverlay, #editEmpOverlay, #shiftModalOverlay, #yearViewOverlay, #noteModalOverlay, #toast {
             display: none;
             position: fixed;
@@ -130,7 +134,6 @@
         }
         .animate-spin-fast { animation: spin 0.8s linear infinite; }
 
-        /* Zoom Slider Styling */
         input[type=range].zoom-slider::-webkit-slider-runnable-track {
             background: rgba(255,255,255,0.1);
             height: 4px;
@@ -155,7 +158,7 @@
         </div>
     </div>
 
-    <!-- Modale (Settings, Year, Note etc.) -->
+    <!-- Modale -->
     <div id="yearViewOverlay" onclick="closeYearModal()">
         <div class="glass p-8 rounded-3xl w-full md:w-[450px] shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
             <h3 class="text-xl font-black text-center flex items-center justify-center gap-3 text-current">
@@ -173,13 +176,18 @@
     <div id="columnOverlay" onclick="closeColumnModal(event)">
         <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-4 overflow-y-auto max-h-[90vh]" onclick="event.stopPropagation()">
             <h3 class="text-lg font-bold text-center text-current">Einstellungen</h3>
-            <div class="border-b border-white/10 pb-4 mb-2">
-                <p class="text-[10px] uppercase font-black text-slate-500 mb-2">Infospalten</p>
-                <div class="flex flex-col gap-2" id="columnToggleList"></div>
-            </div>
-            <div>
-                <p class="text-[10px] uppercase font-black text-slate-500 mb-2 tracking-widest">Schichten zählen</p>
-                <div class="flex flex-wrap gap-2 pt-2" id="shiftToggleList"></div>
+            <div class="flex flex-col gap-3">
+                <button onclick="loadCloudData()" class="w-full py-3 bg-blue-600/20 text-blue-400 rounded-xl text-[11px] font-black border border-blue-500/20 flex items-center justify-center gap-2">
+                    <i data-lucide="refresh-cw" size="14"></i> Cloud-Daten jetzt erzwingen
+                </button>
+                <div class="border-b border-white/10 pb-4 mb-2">
+                    <p class="text-[10px] uppercase font-black text-slate-500 mb-2">Infospalten</p>
+                    <div class="flex flex-col gap-2" id="columnToggleList"></div>
+                </div>
+                <div>
+                    <p class="text-[10px] uppercase font-black text-slate-500 mb-2 tracking-widest">Schichten zählen</p>
+                    <div class="flex flex-wrap gap-2 pt-2" id="shiftToggleList"></div>
+                </div>
             </div>
             <button onclick="closeColumnModal()" class="w-full py-4 mt-6 bg-blue-600 text-white rounded-xl font-bold shadow-xl">Fertig</button>
         </div>
@@ -204,7 +212,6 @@
     <!-- Main Header -->
     <div class="flex flex-col h-full w-full relative z-10 overflow-hidden">
         <header class="glass m-2 md:m-4 p-3 rounded-2xl shadow-2xl no-print flex items-center justify-between gap-4">
-            <!-- Brand & Station -->
             <div class="flex items-center gap-3 shrink-0">
                 <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
                     <i data-lucide="calendar" class="text-white" size="20"></i>
@@ -215,10 +222,7 @@
                 </div>
             </div>
 
-            <!-- Consolidated Control Bar -->
             <div class="flex items-center gap-2 bg-black/5 p-1 rounded-2xl border border-white/5 ml-auto overflow-x-auto no-scrollbar">
-                
-                <!-- Zoom Slider (Reimplemented) -->
                 <div class="hidden lg:flex items-center gap-2 px-3 py-1 bg-black/20 rounded-xl border border-white/5 shrink-0">
                     <button onclick="adjustZoom(-0.05)" class="text-slate-500 hover:text-white transition-colors"><i data-lucide="minus-circle" size="14"></i></button>
                     <input type="range" id="zoomSlider" min="0.5" max="1.5" step="0.05" value="1" oninput="adjustZoom(0)" class="w-16 h-1 appearance-none bg-white/10 rounded-full zoom-slider cursor-pointer accent-blue-500">
@@ -226,25 +230,21 @@
                     <span id="zoomText" class="text-[9px] font-black text-blue-500 min-w-[28px]">100%</span>
                 </div>
 
-                <!-- Navigation Pille -->
                 <div class="flex items-center bg-black/20 rounded-xl p-0.5 border border-white/5 shrink-0">
                     <button onclick="changeMonth(-1)" class="p-1.5 hover:bg-white/10 rounded-lg text-current transition-colors"><i data-lucide="chevron-left" size="14"></i></button>
                     <div id="monthLabel" onclick="openYearModal()" class="px-3 font-black text-[11px] uppercase cursor-pointer hover:text-blue-400 min-w-[110px] text-center text-current transition-all">Monat</div>
                     <button onclick="changeMonth(1)" class="p-1.5 hover:bg-white/10 rounded-lg text-current transition-colors"><i data-lucide="chevron-right" size="14"></i></button>
                 </div>
                 
-                <!-- Arbeitstage Badge -->
                 <div id="headerWorkingDays" class="px-3 py-2 bg-blue-500/10 text-blue-400 text-[10px] font-black rounded-xl border border-blue-500/20 hidden md:block shrink-0">
                     -- Arbeitstage
                 </div>
 
-                <!-- Action Group -->
                 <div class="flex items-center gap-1 shrink-0">
                     <button onclick="openColumnModal()" class="p-2 hover:bg-white/10 rounded-xl text-slate-400 transition-all" title="Einstellungen"><i data-lucide="settings-2" size="16"></i></button>
                     <button onclick="openAddEmpOverlay()" class="p-2 hover:bg-emerald-500/20 rounded-xl text-emerald-500 transition-all" title="Personal hinzufügen"><i data-lucide="user-plus" size="16"></i></button>
                     <button id="toggleWarningBtn" onclick="toggleWarnings()" class="p-2 hover:bg-rose-500/20 rounded-xl text-rose-500 transition-all" title="Warnungen"><i data-lucide="alert-triangle" size="16"></i></button>
                     <button id="themeToggle" onclick="toggleTheme()" class="p-2 hover:bg-white/10 rounded-xl text-slate-400 transition-all"><i data-lucide="moon" id="themeIcon" size="16"></i></button>
-                    
                     <button id="saveBtn" onclick="saveData()" class="ml-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[11px] font-black shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all active:scale-95">
                         <i data-lucide="save" id="saveIcon" size="14"></i>
                         <span class="hidden lg:inline">Sichern</span>
@@ -254,14 +254,12 @@
         </header>
 
         <div class="flex flex-1 overflow-hidden relative mb-20 md:mb-0">
-            <!-- Shift Palette Side -->
             <aside id="mobileShiftContainer" class="fixed bottom-0 left-0 w-full z-[100] md:relative md:w-20 lg:w-48 p-2 md:p-0 no-print">
                 <div class="glass p-3 md:p-4 rounded-t-3xl md:rounded-2xl h-full flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-y-auto no-scrollbar">
                     <div id="shiftPalette" class="flex flex-row md:flex-col gap-2 items-center"></div>
                 </div>
             </aside>
 
-            <!-- Table Main Area -->
             <main class="flex-1 glass m-2 md:m-4 mt-0 rounded-2xl md:rounded-3xl overflow-hidden flex flex-col shadow-2xl relative">
                 <div class="overflow-x-auto overflow-y-auto flex-1 custom-scrollbar" id="tableContainer">
                     <table class="w-full border-separate border-spacing-0" id="rosterTable">
@@ -274,7 +272,7 @@
         </div>
     </div>
 
-    <!-- Modals for Editing (Names, Slider, Add) -->
+    <!-- Mitarbeiter Modale -->
     <div id="editEmpOverlay">
         <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
             <h3 class="text-lg font-bold text-center text-current">Mitarbeiter bearbeiten</h3>
@@ -323,9 +321,9 @@
     </div>
 
     <script>
-        // --- State Management ---
+        // --- State ---
         let db, auth, user;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'notaufnahme-duisburg';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'helios-notaufnahme-duisburg';
         
         let viewSettings = JSON.parse(localStorage.getItem('view_settings')) || { status: true, soll: true, ist: true, days: true, diff: true, prev: true, total: true };
         let shiftCounterSettings = JSON.parse(localStorage.getItem('shift_counter_settings')) || { FD: true, SD: true, ND: true };
@@ -362,7 +360,7 @@
             K:  { label: 'Krank', color: 'bg-rose-500/90', textColor: 'text-white', hours: 7.7 }
         };
 
-        let EMPLOYEES = [...DEFAULT_EMPLOYEES];
+        let EMPLOYEES = JSON.parse(localStorage.getItem('helios_employees')) || [...DEFAULT_EMPLOYEES];
         let roster = JSON.parse(localStorage.getItem('helios_roster')) || {};
         let rosterNotes = JSON.parse(localStorage.getItem('helios_roster_notes')) || {};
         
@@ -370,10 +368,11 @@
         let activeShift = 'FD';
         let showWarnings = false;
         let editingEmpIndex = null;
+        let draggingIndex = null;
         let editingField = 'status';
         let noteTarget = null;
 
-        // --- Firebase Integration (Corrected for Canvas Rules) ---
+        // --- Firebase (Robust Cloud Sync) ---
         async function initFirebase() {
             if (!window.firebaseCore) return;
             const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, getFirestore, onAuthStateChanged } = window.firebaseCore;
@@ -384,61 +383,50 @@
                 const app = initializeApp(JSON.parse(configStr));
                 auth = getAuth(app);
                 db = getFirestore(app);
-                
-                // Rule 3: Auth BEFORE Queries. await registration.
                 const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                if (token) {
-                    await signInWithCustomToken(auth, token);
-                } else {
-                    await signInAnonymously(auth);
-                }
+                
+                if (token) await signInWithCustomToken(auth, token);
+                else await signInAnonymously(auth);
 
                 onAuthStateChanged(auth, (u) => {
                     user = u;
                     if (user) {
-                        document.getElementById('syncLabel').innerText = `Helios Duisburg | Online`;
-                        // Erst laden, wenn Auth garantiert ist
+                        document.getElementById('syncLabel').innerText = `Sync: Online`;
                         loadCloudData();
                     }
                 });
-            } catch (e) { 
-                console.error("Firebase Auth Fehler:", e);
-                showToast("Cloud Fehler", "cloud-off");
-            }
+            } catch (e) { console.error("Firebase Fehler:", e); }
         }
 
         async function loadCloudData() {
-            if (!user || !db) return;
+            if (!user || !db) { showToast("Sync nicht bereit", "alert-circle"); return; }
             const { doc, getDoc } = window.firebaseCore;
-            // Rule 1: Correct Path
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rosterPlan', 'main');
             try {
                 const snap = await getDoc(docRef);
                 if (snap.exists()) {
                     const data = snap.data();
-                    if (data.employees && data.employees.length > 0) EMPLOYEES = data.employees;
+                    if (data.employees) EMPLOYEES = data.employees;
                     if (data.roster) roster = data.roster;
                     if (data.rosterNotes) rosterNotes = data.rosterNotes;
                     if (data.shifts) SHIFT_TYPES = data.shifts;
                     renderRoster();
                     showToast("Cloud-Daten geladen", "cloud");
+                } else {
+                    showToast("Keine Cloud-Daten gefunden", "info");
                 }
-            } catch (e) { console.error("Cloud-Laden Fehler:", e); }
+            } catch (e) { showToast("Cloud-Ladefehler", "alert-triangle"); }
         }
 
         async function saveData() {
-            // Lokal Backup
             localStorage.setItem('helios_employees', JSON.stringify(EMPLOYEES));
             localStorage.setItem('helios_roster', JSON.stringify(roster));
             localStorage.setItem('helios_roster_notes', JSON.stringify(rosterNotes));
-            
             const saveIcon = document.getElementById('saveIcon');
             saveIcon.classList.add('animate-spin-fast');
 
-            // Rule 3: Guard operation with user check
             if (user && db) {
                 const { doc, setDoc, serverTimestamp } = window.firebaseCore;
-                // Rule 1: Correct Path
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rosterPlan', 'main');
                 try {
                     await setDoc(docRef, { 
@@ -448,16 +436,28 @@
                         shifts: SHIFT_TYPES, 
                         updatedAt: serverTimestamp() 
                     }, { merge: true });
-                    showToast("Erfolgreich synchronisiert", "cloud-check");
-                } catch (e) { 
-                    showToast("Cloud Speicherfehler", "alert-circle"); 
-                    console.error("Cloud Save Error:", e);
-                }
-            } else { 
-                showToast("Lokal gesichert (Offline)", "save"); 
-            }
+                    showToast("Cloud-Sync OK", "cloud-check");
+                } catch (e) { showToast("Cloud-Sync Fehler", "alert-triangle"); }
+            } else { showToast("Lokal gesichert", "save"); }
             setTimeout(() => saveIcon.classList.remove('animate-spin-fast'), 800);
         }
+
+        // --- Drag & Drop ---
+        function handleDragStart(e, index) {
+            draggingIndex = index;
+            e.currentTarget.classList.add('dragging');
+        }
+        function handleDragOver(e) { e.preventDefault(); }
+        function handleDrop(e, index) {
+            e.preventDefault();
+            if (draggingIndex === null || draggingIndex === index) return;
+            const movedItem = EMPLOYEES.splice(draggingIndex, 1)[0];
+            EMPLOYEES.splice(index, 0, movedItem);
+            draggingIndex = null;
+            renderRoster();
+            saveData();
+        }
+        function handleDragEnd(e) { e.currentTarget.classList.remove('dragging'); }
 
         // --- Helpers ---
         function getHolidaysNRW(year) {
@@ -476,18 +476,7 @@
             return count;
         }
 
-        // --- Zoom Helper ---
-        function adjustZoom(delta) {
-            const slider = document.getElementById('zoomSlider');
-            if(!slider) return;
-            let val = delta === 0 ? parseFloat(slider.value) : parseFloat(slider.value) + delta;
-            val = Math.max(0.5, Math.min(1.5, val));
-            slider.value = val;
-            document.documentElement.style.setProperty('--zoom-factor', val);
-            document.getElementById('zoomText').innerText = Math.round(val * 100) + '%';
-        }
-
-        // --- Core Render ---
+        // --- Render ---
         function renderRoster() {
             const year = currentDate.getFullYear(), month = currentDate.getMonth();
             const days = []; const d = new Date(year, month, 1);
@@ -524,7 +513,6 @@
                 const k = day.toISOString().split('T')[0];
                 const isH = !!holidays[k], isW = day.getDay() === 0 || day.getDay() === 6;
                 const isWarn = showWarnings && ((dailyCounts[k].FD || 0) < 2 || (dailyCounts[k].SD || 0) < 2 || (dailyCounts[k].ND || 0) < 2);
-
                 headHTML += `<th class="p-2 border-b border-black/5 min-w-[40px] ${isH ? 'holiday-cell' : (isW ? 'weekend-cell' : '')} ${isWarn ? 'warning-cell' : ''}">
                     <div class="flex flex-col items-center">
                         <span class="text-[8px] opacity-50 uppercase">${day.toLocaleDateString('de-DE', { weekday: 'short' })}</span>
@@ -537,7 +525,13 @@
             const body = document.getElementById('tableBody'); body.innerHTML = '';
             EMPLOYEES.forEach((emp, idx) => {
                 const tr = document.createElement('tr');
-                tr.className = 'row-separator hover:bg-[var(--row-hover)] text-current';
+                tr.className = 'row-separator hover:bg-[var(--row-hover)] text-current cursor-move';
+                tr.draggable = true;
+                tr.ondragstart = (e) => handleDragStart(e, idx);
+                tr.ondragover = (e) => handleDragOver(e);
+                tr.ondrop = (e) => handleDrop(e, idx);
+                tr.ondragend = (e) => handleDragEnd(e);
+
                 let ist = 0; const eRost = roster[emp.id] || {}, eNote = rosterNotes[emp.id] || {};
                 const soll = monthSoll * (parseInt(emp.status) / 100);
                 
@@ -555,10 +549,13 @@
                     </td>`;
                 });
 
-                const diff = ist - soll, total = diff + (parseFloat(emp.prevOvertime) || 0);
-                tr.innerHTML = `<td class="p-3 sticky-left name-col-bg border-r border-black/5 shadow-xl">
-                    <div class="font-black text-[11px] uppercase cursor-pointer hover:text-blue-500" onclick="openEditModal(${idx})">${emp.name}</div>
-                    <div class="text-[8px] text-slate-500 truncate uppercase">${emp.role}</div>
+                const diff = ist - soll;
+                tr.innerHTML = `<td class="p-3 sticky-left name-col-bg border-r border-black/5 shadow-xl flex items-center gap-2">
+                    <i data-lucide="grip-vertical" class="text-slate-500" size="12"></i>
+                    <div>
+                        <div class="font-black text-[11px] uppercase cursor-pointer hover:text-blue-500" onclick="openEditModal(${idx})">${emp.name}</div>
+                        <div class="text-[8px] text-slate-500 truncate uppercase">${emp.role}</div>
+                    </div>
                 </td>
                 <td class="p-1 text-center text-[9px] font-bold text-slate-400 ${hidden('status')}" onclick="openSliderModal(${idx}, 'status')">${emp.status}</td>
                 <td class="p-1 text-center text-[9px] font-mono text-slate-400 ${hidden('soll')}">${soll.toFixed(0)}</td>
@@ -591,7 +588,7 @@
             });
         }
 
-        // --- Interaction Handlers ---
+        // --- Interaction ---
         function handleCellClick(empId, dateKey, empName) {
             if (activeShift === 'NOTE') openNoteModal(empId, dateKey, empName);
             else { 
@@ -600,15 +597,7 @@
                 renderRoster(); 
             }
         }
-
-        function toggleWarnings() { 
-            showWarnings = !showWarnings; 
-            const btn = document.getElementById('toggleWarningBtn');
-            btn.classList.toggle('bg-rose-500/30', showWarnings);
-            btn.classList.toggle('ring-2', showWarnings);
-            renderRoster(); 
-        }
-
+        function toggleWarnings() { showWarnings = !showWarnings; document.getElementById('toggleWarningBtn').classList.toggle('bg-rose-500/30', showWarnings); renderRoster(); }
         function openNoteModal(empId, dateKey, empName) {
             noteTarget = { empId, dateKey }; document.getElementById('noteContext').innerText = `${empName} | ${dateKey}`;
             document.getElementById('noteInput').value = (rosterNotes[empId] || {})[dateKey] || "";
@@ -622,10 +611,8 @@
             else rosterNotes[noteTarget.empId][noteTarget.dateKey] = text;
             renderRoster(); closeNoteModal(); saveData();
         }
-
         function changeMonth(o) { currentDate.setMonth(currentDate.getMonth() + o); renderRoster(); }
         function toggleTheme() { document.body.classList.toggle('light-mode'); localStorage.setItem('theme', document.body.classList.contains('light-mode')?'light':'dark'); }
-        
         function showToast(m, i) { 
             const t = document.getElementById('toast'); 
             document.getElementById('toastMessage').innerText = m; 
@@ -635,21 +622,18 @@
             t.style.display = 'flex'; 
             setTimeout(()=>t.style.display='none', 3000); 
         }
-
         function openEditModal(i) { editingEmpIndex = i; const e = EMPLOYEES[i]; document.getElementById('editEmpNameInput').value = e.name; document.getElementById('editEmpRoleInput').value = e.role; document.getElementById('editEmpOverlay').style.display = 'flex'; }
         function closeEditModal() { document.getElementById('editEmpOverlay').style.display = 'none'; }
         function applyEditEmployee() { EMPLOYEES[editingEmpIndex].name = document.getElementById('editEmpNameInput').value; EMPLOYEES[editingEmpIndex].role = document.getElementById('editEmpRoleInput').value; renderRoster(); closeEditModal(); saveData(); }
         function confirmDeleteEmployee() { if(confirm('Kollege entfernen?')) { EMPLOYEES.splice(editingEmpIndex, 1); renderRoster(); closeEditModal(); saveData(); } }
-
         function openSliderModal(i, f) { editingEmpIndex = i; editingField = f; const s = document.getElementById('statusSlider'); s.value = f==='prevOvertime' ? EMPLOYEES[i].prevOvertime : parseInt(EMPLOYEES[i].status); updateSliderLabel(); document.getElementById('modalOverlay').style.display = 'flex'; }
         function updateSliderLabel() { document.getElementById('sliderValueText').innerText = document.getElementById('statusSlider').value + (editingField==='status'?'%':'h'); }
         function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
         function applySliderValue() { const v = document.getElementById('statusSlider').value; if(editingField==='status') EMPLOYEES[editingEmpIndex].status = v+'%'; else EMPLOYEES[editingEmpIndex].prevOvertime = v; renderRoster(); closeModal(); saveData(); }
-
         function openAddEmpOverlay() { document.getElementById('addEmpOverlay').style.display = 'flex'; }
         function closeAddEmpOverlay() { document.getElementById('addEmpOverlay').style.display = 'none'; }
         function addNewEmployee() { const n = document.getElementById('newEmpName').value; if(!n) return; EMPLOYEES.push({ id: Date.now().toString(), name: n, role: document.getElementById('newEmpRole').value || 'Pflege', status: document.getElementById('newEmpStatus').value+'%', prevOvertime: 0 }); renderRoster(); closeAddEmpOverlay(); saveData(); }
-
+        function adjustZoom(delta) { const slider = document.getElementById('zoomSlider'); let val = delta === 0 ? parseFloat(slider.value) : parseFloat(slider.value) + delta; val = Math.max(0.5, Math.min(1.5, val)); slider.value = val; document.documentElement.style.setProperty('--zoom-factor', val); document.getElementById('zoomText').innerText = Math.round(val * 100) + '%'; }
         function openColumnModal() {
             const colList = document.getElementById('columnToggleList'); 
             if(colList) {
@@ -666,8 +650,7 @@
                 shiftList.innerHTML = '';
                 Object.keys(SHIFT_TYPES).forEach(key => {
                     if(key === 'X') return;
-                    const btn = document.createElement('button');
-                    btn.onclick = () => toggleShiftCounter(key);
+                    const btn = document.createElement('button'); btn.onclick = () => toggleShiftCounter(key);
                     btn.className = `px-3 py-1.5 rounded-xl text-[9px] font-black border transition-all shadow-sm ${shiftCounterSettings[key] ? 'bg-blue-600 text-white border-blue-500 scale-105' : 'bg-black/5 border-white/5 text-slate-500'}`;
                     btn.innerText = key;
                     shiftList.appendChild(btn);
@@ -678,31 +661,10 @@
         function closeColumnModal() { document.getElementById('columnOverlay').style.display = 'none'; }
         function toggleColumn(key) { viewSettings[key] = !viewSettings[key]; localStorage.setItem('view_settings', JSON.stringify(viewSettings)); openColumnModal(); renderRoster(); }
         function toggleShiftCounter(key) { shiftCounterSettings[key] = !shiftCounterSettings[key]; localStorage.setItem('shift_counter_settings', JSON.stringify(shiftCounterSettings)); openColumnModal(); renderRoster(); }
-
-        function openShiftModal() { renderShiftTypeList(); document.getElementById('shiftModalOverlay').style.display = 'flex'; }
-        function closeShiftModal() { document.getElementById('shiftModalOverlay').style.display = 'none'; renderRoster(); saveData(); }
-        function renderShiftTypeList() {
-            const c = document.getElementById('shiftTypeListContainer'); if(!c) return; c.innerHTML = '';
-            Object.entries(SHIFT_TYPES).forEach(([k, v]) => {
-                const d = document.createElement('div'); d.className = "flex items-center gap-2 bg-black/5 p-2 rounded-xl border border-white/5";
-                d.innerHTML = `<div class="w-8 h-8 rounded-lg ${v.color} flex items-center justify-center font-black ${v.textColor}">${k}</div><input type="text" value="${v.label}" onchange="SHIFT_TYPES['${k}'].label=this.value" class="flex-1 bg-transparent text-[11px] font-bold text-current"><input type="number" step="0.1" value="${v.hours}" onchange="SHIFT_TYPES['${k}'].hours=parseFloat(this.value)" class="w-12 bg-black/10 rounded-lg text-center text-[11px] text-current"><button onclick="delete SHIFT_TYPES['${k}']; renderShiftTypeList()" class="p-1 text-rose-500"><i data-lucide="trash-2" size="12"></i></button>`;
-                c.appendChild(d);
-            });
-            lucide.createIcons();
-        }
-        function addShiftType() {
-            const k = document.getElementById('newShiftKey').value.toUpperCase().trim(); const l = document.getElementById('newShiftLabel').value; const h = parseFloat(document.getElementById('newShiftHours').value);
-            if(!k || SHIFT_TYPES[k]) return;
-            SHIFT_TYPES[k] = { label: l||k, hours: h||0, color: 'bg-blue-500', textColor: 'text-white' }; 
-            renderShiftTypeList();
-            document.getElementById('newShiftKey').value = ''; document.getElementById('newShiftLabel').value = ''; document.getElementById('newShiftHours').value = '';
-        }
-
         function openYearModal() { document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); document.getElementById('yearViewOverlay').style.display = 'flex'; }
         function closeYearModal() { document.getElementById('yearViewOverlay').style.display = 'none'; }
-        function renderMonthGrid() { const container = document.getElementById('monthGrid'); if(!container) return; container.innerHTML = ''; const months = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]; months.forEach((m, i) => { const btn = document.createElement('button'); const isCurrent = currentDate.getMonth() === i; btn.className = `p-3 rounded-xl text-[9px] font-black uppercase transition-all border ${isCurrent ? 'bg-blue-600 text-white shadow-lg' : 'bg-black/5 text-current'}`; btn.innerText = m; btn.onclick = () => { currentDate.setMonth(i); renderRoster(); closeYearModal(); }; container.appendChild(btn); }); }
+        function renderMonthGrid() { const container = document.getElementById('monthGrid'); container.innerHTML = ''; const months = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]; months.forEach((m, i) => { const btn = document.createElement('button'); const isCurrent = currentDate.getMonth() === i; btn.className = `p-3 rounded-xl text-[9px] font-black uppercase transition-all border ${isCurrent ? 'bg-blue-600 text-white shadow-lg' : 'bg-black/5 text-current'}`; btn.innerText = m; btn.onclick = () => { currentDate.setMonth(i); renderRoster(); closeYearModal(); }; container.appendChild(btn); }); }
         function changeYear(o) { currentDate.setFullYear(currentDate.getFullYear() + o); document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); }
-
         function renderShiftPalette() {
             const c = document.getElementById('shiftPalette'); c.innerHTML = `<button onclick="activeShift='NOTE'; renderShiftPalette()" class="flex shrink-0 items-center gap-2 p-1.5 rounded-xl border transition-all ${activeShift==='NOTE'?'bg-yellow-500/20 border-yellow-500 scale-105 shadow-lg':'bg-black/5 border-white/5'}"><div class="w-8 h-8 rounded-lg bg-yellow-500 flex items-center justify-center shadow-md"><i data-lucide="sticky-note" size="14"></i></div></button>`;
             Object.entries(SHIFT_TYPES).forEach(([k, v]) => {
@@ -715,21 +677,12 @@
 
         window.onload = async () => {
             if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
-            renderRoster(); 
-            await initFirebase();
-            
-            // Globale Funktionen für Modale registrieren
-            window.openColumnModal = openColumnModal;
-            window.closeColumnModal = closeColumnModal;
-            window.openShiftModal = openShiftModal;
-            window.closeShiftModal = closeShiftModal;
-            window.openYearModal = openYearModal;
-            window.closeYearModal = closeYearModal;
-            window.changeYear = changeYear;
-            window.toggleWarnings = toggleWarnings;
-            window.toggleColumn = toggleColumn;
-            window.toggleShiftCounter = toggleShiftCounter;
-            window.adjustZoom = adjustZoom;
+            renderRoster(); await initFirebase();
+            window.openColumnModal = openColumnModal; window.closeColumnModal = closeColumnModal;
+            window.openYearModal = openYearModal; window.closeYearModal = closeYearModal;
+            window.changeYear = changeYear; window.toggleWarnings = toggleWarnings;
+            window.toggleColumn = toggleColumn; window.toggleShiftCounter = toggleShiftCounter;
+            window.adjustZoom = adjustZoom; window.loadCloudData = loadCloudData;
         };
     </script>
 </body>
