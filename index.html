@@ -89,7 +89,7 @@
             box-shadow: inset 0 0 10px rgba(225, 29, 72, 0.2);
         }
 
-        #columnOverlay, #modalOverlay, #addEmpOverlay, #editEmpOverlay, #shiftModalOverlay, #yearViewOverlay, #toast {
+        #columnOverlay, #modalOverlay, #addEmpOverlay, #editEmpOverlay, #shiftModalOverlay, #yearViewOverlay, #noteModalOverlay, #toast {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -117,6 +117,17 @@
             position: sticky;
             left: 0;
             z-index: 40;
+        }
+
+        .note-marker {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 5px;
+            height: 5px;
+            background-color: #eab308;
+            border-radius: 50%;
+            box-shadow: 0 0 4px #eab308;
         }
 
         @media (max-width: 768px) {
@@ -189,6 +200,23 @@
                 <div class="flex flex-wrap gap-2" id="shiftToggleList"></div>
             </div>
             <button onclick="closeColumnModal()" class="w-full py-4 mt-4 bg-blue-600 text-white rounded-xl font-bold">Fertig</button>
+        </div>
+    </div>
+
+    <!-- Notiz Modal -->
+    <div id="noteModalOverlay">
+        <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-black text-center text-current flex items-center justify-center gap-2">
+                <i data-lucide="sticky-note" class="text-yellow-500"></i> Notiz / Wunsch
+            </h3>
+            <div class="flex flex-col gap-1">
+                <p id="noteContext" class="text-[10px] text-slate-500 uppercase font-bold text-center"></p>
+                <textarea id="noteInput" rows="4" placeholder="Wunsch oder Notiz hier eintragen..." class="bg-black/5 border border-white/10 rounded-2xl p-4 text-sm text-current focus:outline-none focus:ring-2 focus:ring-yellow-500/50 resize-none"></textarea>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="closeNoteModal()" class="flex-1 py-3 rounded-xl bg-black/5 text-current">Abbrechen</button>
+                <button onclick="saveNote()" class="flex-1 py-3 rounded-xl bg-yellow-600 text-white font-bold shadow-lg">Speichern</button>
+            </div>
         </div>
     </div>
 
@@ -359,11 +387,14 @@
 
         let EMPLOYEES = JSON.parse(localStorage.getItem('helios_employees')) || DEFAULT_EMPLOYEES;
         let roster = JSON.parse(localStorage.getItem('helios_roster')) || {};
+        let rosterNotes = JSON.parse(localStorage.getItem('helios_roster_notes')) || {}; // NEU: Notizen Speicher
+        
         let currentDate = new Date(2026, 3, 1);
         let activeShift = 'FD';
         let showWarnings = false;
         let editingEmpIndex = null;
         let editingField = 'status';
+        let noteTarget = null; // { empId, dateKey }
 
         // --- Firebase & Auth ---
         async function initFirebase() {
@@ -400,6 +431,7 @@
                     const data = snap.data();
                     if (data.employees && data.employees.length > 0) EMPLOYEES = data.employees;
                     if (data.roster) roster = data.roster;
+                    if (data.rosterNotes) rosterNotes = data.rosterNotes;
                     if (data.shifts) SHIFT_TYPES = data.shifts;
                     renderRoster();
                     showToast("Daten geladen", "cloud");
@@ -411,6 +443,7 @@
             localStorage.setItem('helios_employees', JSON.stringify(EMPLOYEES));
             localStorage.setItem('helios_shifts', JSON.stringify(SHIFT_TYPES));
             localStorage.setItem('helios_roster', JSON.stringify(roster));
+            localStorage.setItem('helios_roster_notes', JSON.stringify(rosterNotes));
 
             const saveIcon = document.getElementById('saveIcon');
             saveIcon.classList.add('animate-spin-fast');
@@ -422,6 +455,7 @@
                     await setDoc(docRef, {
                         employees: EMPLOYEES,
                         roster: roster,
+                        rosterNotes: rosterNotes,
                         shifts: SHIFT_TYPES,
                         updatedAt: serverTimestamp()
                     }, { merge: true });
@@ -530,12 +564,14 @@
                 let actualHours = 0; 
                 let actualWorkingDays = 0;
                 const empRoster = roster[emp.id] || {};
+                const empNotes = rosterNotes[emp.id] || {}; // Notizen für diesen Kollegen
                 const empTarget = monthTargetHours * ((parseFloat(emp.status) || 100) / 100);
                 
                 let daysHTML = "";
                 days.forEach(day => {
                     const key = day.toISOString().split('T')[0];
                     const s = empRoster[key];
+                    const note = empNotes[key];
                     if (s && SHIFT_TYPES[s]) {
                         actualHours += SHIFT_TYPES[s].hours;
                         if (SHIFT_TYPES[s].hours > 0) actualWorkingDays++;
@@ -543,8 +579,9 @@
                     const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                     const isWarn = showWarnings && (dailyCounts[key].FD < 2 || dailyCounts[key].SD < 2 || dailyCounts[key].ND < 2);
                     
-                    daysHTML += `<td onclick="toggleShift('${emp.id}', '${key}')" class="p-0.5 cursor-pointer border-r border-black/5 ${holidays[key] ? 'holiday-cell' : (isWeekend ? 'weekend-cell' : '')} ${isWarn ? 'warning-cell' : ''}">
+                    daysHTML += `<td onclick="handleCellClick('${emp.id}', '${key}', '${emp.name}')" class="p-0.5 cursor-pointer border-r border-black/5 relative ${holidays[key] ? 'holiday-cell' : (isWeekend ? 'weekend-cell' : '')} ${isWarn ? 'warning-cell' : ''}" title="${note || ''}">
                         <div class="h-8 w-full rounded-lg flex items-center justify-center text-[10px] font-black transition-all ${s ? `${SHIFT_TYPES[s].color} ${SHIFT_TYPES[s].textColor} shadow-md scale-90` : 'hover:bg-blue-500/10'}">${s || ''}</div>
+                        ${note ? '<div class="note-marker"></div>' : ''}
                     </td>`;
                 });
 
@@ -597,7 +634,49 @@
         }
 
         // --- Event Handler ---
+        function handleCellClick(empId, dateKey, empName) {
+            if (activeShift === 'NOTE') {
+                openNoteModal(empId, dateKey, empName);
+            } else {
+                toggleShift(empId, dateKey);
+            }
+        }
+
         function toggleShift(id, k) { if (!roster[id]) roster[id] = {}; roster[id][k] = (roster[id][k] === activeShift) ? null : activeShift; renderRoster(); }
+        
+        // NEU: Notizen Management
+        function openNoteModal(empId, dateKey, empName) {
+            noteTarget = { empId, dateKey };
+            const currentNote = (rosterNotes[empId] || {})[dateKey] || "";
+            const d = new Date(dateKey);
+            document.getElementById('noteContext').innerText = `${empName} | ${d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}`;
+            document.getElementById('noteInput').value = currentNote;
+            document.getElementById('noteModalOverlay').style.display = 'flex';
+            setTimeout(() => document.getElementById('noteInput').focus(), 100);
+        }
+
+        function closeNoteModal() {
+            document.getElementById('noteModalOverlay').style.display = 'none';
+            noteTarget = null;
+        }
+
+        function saveNote() {
+            if (!noteTarget) return;
+            const text = document.getElementById('noteInput').value.trim();
+            if (!rosterNotes[noteTarget.empId]) rosterNotes[noteTarget.empId] = {};
+            
+            if (text === "") {
+                delete rosterNotes[noteTarget.empId][noteTarget.dateKey];
+            } else {
+                rosterNotes[noteTarget.empId][noteTarget.dateKey] = text;
+            }
+            
+            renderRoster();
+            closeNoteModal();
+            saveData();
+            showToast("Notiz gespeichert", "sticky-note");
+        }
+
         function changeMonth(o) { currentDate.setMonth(currentDate.getMonth() + o); renderRoster(); }
         function toggleTheme() { let mode = document.body.classList.toggle('light-mode'); localStorage.setItem('theme', mode ? 'light' : 'dark'); renderRoster(); }
         function toggleWarnings() { showWarnings = !showWarnings; document.getElementById('toggleWarningBtn').classList.toggle('bg-rose-500', showWarnings); renderRoster(); }
@@ -681,6 +760,14 @@
         
         function renderShiftPalette() { 
             const c = document.getElementById('shiftPalette'); c.innerHTML = ''; 
+            
+            // NEU: Notiz-Modus Button in der Palette
+            const noteBtn = document.createElement('button');
+            noteBtn.className = `flex shrink-0 items-center gap-2 p-1 md:p-2 rounded-xl border transition-all ${activeShift==='NOTE'?'bg-yellow-500/20 border-yellow-500':'bg-black/5 border-white/5'}`;
+            noteBtn.onclick = () => { activeShift = 'NOTE'; renderShiftPalette(); };
+            noteBtn.innerHTML = `<div class="w-8 h-8 rounded-lg bg-yellow-500 flex items-center justify-center font-black text-white shadow-md"><i data-lucide="sticky-note" size="14"></i></div><span class="text-[9px] font-bold uppercase hidden lg:block text-current">Notiz</span>`;
+            c.appendChild(noteBtn);
+
             Object.entries(SHIFT_TYPES).forEach(([k, v]) => { 
                 const b = document.createElement('button'); 
                 b.className = `flex shrink-0 items-center gap-2 p-1 md:p-2 rounded-xl border transition-all ${activeShift===k?'bg-blue-500/20 border-blue-500':'bg-black/5 border-white/5'}`; 
@@ -688,6 +775,7 @@
                 b.innerHTML = `<div class="w-8 h-8 rounded-lg ${v.color} flex items-center justify-center font-black ${v.textColor} shadow-md">${k}</div><span class="text-[9px] font-bold uppercase hidden lg:block text-current">${v.label}</span>`; 
                 c.appendChild(b); 
             }); 
+            lucide.createIcons();
         }
 
         window.onload = async () => {
