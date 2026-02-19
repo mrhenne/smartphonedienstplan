@@ -134,7 +134,7 @@
         </div>
     </div>
 
-    <!-- Modale -->
+    <!-- Jahresübersicht Modal -->
     <div id="yearViewOverlay" onclick="closeYearModal()">
         <div class="glass p-8 rounded-3xl w-full md:w-[450px] shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
             <h3 class="text-xl font-black text-center flex items-center justify-center gap-3 text-current">
@@ -146,6 +146,47 @@
                 <button onclick="closeYearModal()" class="px-8 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-lg">Schließen</button>
                 <button onclick="changeYear(1)" class="p-2 glass rounded-xl text-current"><i data-lucide="chevron-right"></i></button>
             </div>
+        </div>
+    </div>
+
+    <!-- Ansicht/Spalten Modal -->
+    <div id="columnOverlay" onclick="closeColumnModal(event)">
+        <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-4 overflow-y-auto max-h-[90vh]" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-bold text-center text-current">Einstellungen</h3>
+            
+            <div class="border-b border-white/10 pb-4 mb-2">
+                <p class="text-[10px] uppercase font-black text-slate-500 mb-2">Konfiguration</p>
+                <button onclick="closeColumnModal(); openShiftModal()" class="w-full py-3 bg-blue-600/20 border border-blue-500/40 text-blue-500 rounded-xl text-[11px] font-black flex items-center justify-center gap-2">
+                    <i data-lucide="layout-grid" size="14"></i> Dienste verwalten
+                </button>
+            </div>
+
+            <div class="border-b border-white/10 pb-2 mb-2">
+                <p class="text-[10px] uppercase font-black text-slate-500 mb-2">Infospalten</p>
+                <div class="flex flex-col gap-2" id="columnToggleList"></div>
+            </div>
+            <div>
+                <p class="text-[10px] uppercase font-black text-slate-500 mb-2">Schichten zählen</p>
+                <div class="flex flex-wrap gap-2" id="shiftToggleList"></div>
+            </div>
+            <button onclick="closeColumnModal()" class="w-full py-4 mt-4 bg-blue-600 text-white rounded-xl font-bold">Fertig</button>
+        </div>
+    </div>
+
+    <!-- Dienste Modal -->
+    <div id="shiftModalOverlay">
+        <div class="glass p-8 rounded-3xl w-full md:w-[500px] max-h-[90vh] shadow-2xl flex flex-col gap-6 overflow-hidden" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-black text-center text-current">Dienste konfigurieren</h3>
+            <div class="overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3" id="shiftTypeListContainer"></div>
+            <div class="border-t border-white/10 pt-4 flex flex-col gap-4 text-current">
+                <div class="grid grid-cols-3 gap-2">
+                    <input type="text" id="newShiftKey" placeholder="Kürzel" class="bg-black/5 border border-white/10 rounded-xl p-2 text-xs">
+                    <input type="text" id="newShiftLabel" placeholder="Bezeichnung" class="bg-black/5 border border-white/10 rounded-xl p-2 text-xs">
+                    <input type="number" step="0.1" id="newShiftHours" placeholder="Std" class="bg-black/5 border border-white/10 rounded-xl p-2 text-xs">
+                </div>
+                <button onclick="addShiftType()" class="w-full py-3 bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all">Dienstart hinzufügen</button>
+            </div>
+            <button onclick="closeShiftModal()" class="py-4 rounded-xl bg-blue-600 text-white font-bold">Speichern & Schließen</button>
         </div>
     </div>
 
@@ -384,7 +425,7 @@
                 try {
                     await setDoc(docRef, { employees: EMPLOYEES, roster: roster, rosterNotes: rosterNotes, shifts: SHIFT_TYPES, updatedAt: serverTimestamp() }, { merge: true });
                     showToast("Sync erfolgreich", "cloud-check");
-                } catch (e) { showToast("Sync Fehler", "alert-triangle"); }
+                } catch (e) { showToast("Sync Fehler", "alert-circle"); }
             } else { showToast("Lokal gesichert", "save"); }
             setTimeout(() => saveIcon.classList.remove('animate-spin-fast'), 800);
         }
@@ -539,6 +580,72 @@
         function closeAddEmpOverlay() { document.getElementById('addEmpOverlay').style.display = 'none'; }
         function addNewEmployee() { const n = document.getElementById('newEmpName').value; if(!n) return; EMPLOYEES.push({ id: Date.now().toString(), name: n, role: document.getElementById('newEmpRole').value || 'Pflege', status: document.getElementById('newEmpStatus').value+'%', prevOvertime: 0 }); renderRoster(); closeAddEmpOverlay(); saveData(); }
 
+        function adjustZoom(delta) {
+            const slider = document.getElementById('zoomSlider');
+            if(!slider) return;
+            let val = delta === 0 ? parseFloat(slider.value) : parseFloat(slider.value) + delta;
+            val = Math.max(0.5, Math.min(1.5, val));
+            slider.value = val;
+            document.documentElement.style.setProperty('--zoom-factor', val);
+            document.getElementById('zoomText').innerText = Math.round(val * 100) + '%';
+        }
+
+        // --- Modale & Settings Functions ---
+        function openColumnModal() {
+            const colList = document.getElementById('columnToggleList'); 
+            if(colList) {
+                colList.innerHTML = '';
+                const colLabels = { status: 'Anteil', soll: 'Soll', ist: 'Ist', days: 'Arbeitstage', diff: '+/-', prev: 'Vormt' };
+                Object.keys(viewSettings).forEach(key => {
+                    if(!colLabels[key]) return;
+                    const div = document.createElement('div'); div.className = "flex items-center justify-between p-2 bg-black/5 rounded-xl";
+                    div.innerHTML = `<span class="text-[11px] font-bold text-current">${colLabels[key]}</span><button onclick="toggleColumn('${key}')" class="w-10 h-5 rounded-full relative transition-all ${viewSettings[key] ? 'bg-blue-600' : 'bg-slate-300'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${viewSettings[key] ? 'right-1' : 'left-1'}"></div></button>`;
+                    colList.appendChild(div);
+                });
+            }
+            const shiftList = document.getElementById('shiftToggleList');
+            if(shiftList) {
+                shiftList.innerHTML = '';
+                Object.keys(SHIFT_TYPES).forEach(key => {
+                    if(key === 'X') return;
+                    const btn = document.createElement('button');
+                    btn.onclick = () => toggleShiftCounter(key);
+                    btn.className = `px-3 py-1.5 rounded-xl text-[9px] font-black border transition-all ${shiftCounterSettings[key] ? 'bg-blue-600 text-white border-blue-500' : 'bg-black/5 border-white/5 text-slate-500'}`;
+                    btn.innerText = key;
+                    shiftList.appendChild(btn);
+                });
+            }
+            document.getElementById('columnOverlay').style.display = 'flex';
+        }
+        function closeColumnModal() { document.getElementById('columnOverlay').style.display = 'none'; }
+        function toggleColumn(key) { viewSettings[key] = !viewSettings[key]; localStorage.setItem('view_settings', JSON.stringify(viewSettings)); openColumnModal(); renderRoster(); }
+        function toggleShiftCounter(key) { shiftCounterSettings[key] = !shiftCounterSettings[key]; localStorage.setItem('shift_counter_settings', JSON.stringify(shiftCounterSettings)); openColumnModal(); renderRoster(); }
+
+        function openShiftModal() { renderShiftTypeList(); document.getElementById('shiftModalOverlay').style.display = 'flex'; }
+        function closeShiftModal() { document.getElementById('shiftModalOverlay').style.display = 'none'; renderRoster(); saveData(); }
+        function renderShiftTypeList() {
+            const c = document.getElementById('shiftTypeListContainer'); if(!c) return; c.innerHTML = '';
+            Object.entries(SHIFT_TYPES).forEach(([k, v]) => {
+                const d = document.createElement('div'); d.className = "flex items-center gap-2 bg-black/5 p-2 rounded-xl border border-white/5";
+                d.innerHTML = `<div class="w-8 h-8 rounded-lg ${v.color} flex items-center justify-center font-black ${v.textColor}">${k}</div><input type="text" value="${v.label}" onchange="SHIFT_TYPES['${k}'].label=this.value" class="flex-1 bg-transparent text-[11px] font-bold text-current"><input type="number" step="0.1" value="${v.hours}" onchange="SHIFT_TYPES['${k}'].hours=parseFloat(this.value)" class="w-12 bg-black/10 rounded-lg text-center text-[11px] text-current"><button onclick="delete SHIFT_TYPES['${k}']; renderShiftTypeList()" class="p-1 text-rose-500"><i data-lucide="trash-2" size="12"></i></button>`;
+                c.appendChild(d);
+            });
+            lucide.createIcons();
+        }
+        function addShiftType() {
+            const k = document.getElementById('newShiftKey').value.toUpperCase().trim(); const l = document.getElementById('newShiftLabel').value; const h = parseFloat(document.getElementById('newShiftHours').value);
+            if(!k || SHIFT_TYPES[k]) return;
+            SHIFT_TYPES[k] = { label: l||k, hours: h||0, color: 'bg-blue-500', textColor: 'text-white' }; 
+            renderShiftTypeList();
+            document.getElementById('newShiftKey').value = ''; document.getElementById('newShiftLabel').value = ''; document.getElementById('newShiftHours').value = '';
+        }
+
+        function openYearModal() { document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); document.getElementById('yearViewOverlay').style.display = 'flex'; }
+        function closeYearModal() { document.getElementById('yearViewOverlay').style.display = 'none'; }
+        function renderMonthGrid() { const container = document.getElementById('monthGrid'); if(!container) return; container.innerHTML = ''; const months = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]; months.forEach((m, i) => { const btn = document.createElement('button'); const isCurrent = currentDate.getMonth() === i; btn.className = `p-3 rounded-xl text-[9px] font-black uppercase transition-all border ${isCurrent ? 'bg-blue-600 text-white' : 'bg-black/5 text-current'}`; btn.innerText = m; btn.onclick = () => { currentDate.setMonth(i); renderRoster(); closeYearModal(); }; container.appendChild(btn); }); }
+        function changeYear(o) { currentDate.setFullYear(currentDate.getFullYear() + o); document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); }
+        function toggleWarnings() { showWarnings = !showWarnings; document.getElementById('toggleWarningBtn').classList.toggle('bg-rose-500/20', showWarnings); renderRoster(); }
+
         function renderShiftPalette() {
             const c = document.getElementById('shiftPalette'); c.innerHTML = `<button onclick="activeShift='NOTE'; renderShiftPalette()" class="flex shrink-0 items-center gap-2 p-2 rounded-xl border ${activeShift==='NOTE'?'bg-yellow-500/20 border-yellow-500':'bg-black/5 border-white/5'}"><div class="w-8 h-8 rounded-lg bg-yellow-500 flex items-center justify-center"><i data-lucide="sticky-note" size="14"></i></div></button>`;
             Object.entries(SHIFT_TYPES).forEach(([k, v]) => {
@@ -552,6 +659,15 @@
         window.onload = async () => {
             if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
             renderRoster(); await initFirebase();
+            // Globale Funktionen für Modale registrieren (für onclick im HTML)
+            window.openColumnModal = openColumnModal;
+            window.closeColumnModal = closeColumnModal;
+            window.openShiftModal = openShiftModal;
+            window.closeShiftModal = closeShiftModal;
+            window.openYearModal = openYearModal;
+            window.closeYearModal = closeYearModal;
+            window.changeYear = changeYear;
+            window.toggleWarnings = toggleWarnings;
         };
     </script>
 </body>
