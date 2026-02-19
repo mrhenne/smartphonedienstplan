@@ -104,6 +104,20 @@
             pointer-events: none;
             opacity: 0.7;
         }
+
+        /* Notiz-Text Styling */
+        .note-preview {
+            font-size: 7px;
+            line-height: 1.1;
+            font-weight: 700;
+            margin-top: 1px;
+            max-width: 100%;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -395,9 +409,10 @@
             const { doc, getDoc } = window.firebaseCore;
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rosterPlan', 'main');
             try {
-                const snap = await getDoc(docRef);
-                if (snap.exists()) {
-                    const data = snap.data();
+                const snap = await getDoc(snap); // Correction here in logic: snap already defined above
+                const actualSnap = await getDoc(docRef);
+                if (actualSnap.exists()) {
+                    const data = actualSnap.data();
                     if (data.employees) EMPLOYEES = data.employees;
                     if (data.roster) roster = data.roster;
                     if (data.rosterNotes) rosterNotes = data.rosterNotes;
@@ -537,9 +552,9 @@
                 visibleDays.forEach(day => {
                     const k = day.toISOString().split('T')[0], s = eRost[k], n = eNotes[k], isH = !!holidays[k];
                     rowHTML += `<td ${isEditMode ? `onclick="handleCellClick('${emp.id}', '${k}', '${emp.name}')"` : ''} class="p-0.5 border-r border-black/5 text-center ${isH ? 'holiday-cell' : ''} ${isEditMode ? 'cursor-pointer' : ''}">
-                        <div class="h-8 w-full rounded flex flex-col items-center justify-center transition-all ${s ? `${SHIFT_TYPES[s].color} ${SHIFT_TYPES[s].textColor} shadow-md` : 'hover:bg-blue-500/5'}">
-                            <span class="text-[10px] font-black">${s || ''}</span>
-                            ${n ? '<div class="w-1.5 h-1.5 rounded-full bg-yellow-500 mt-0.5 shadow-sm"></div>' : ''}
+                        <div class="min-h-[32px] w-full rounded flex flex-col items-center justify-center transition-all p-0.5 ${s ? `${SHIFT_TYPES[s].color} ${SHIFT_TYPES[s].textColor} shadow-md` : 'hover:bg-blue-500/5'}">
+                            <span class="text-[10px] font-black leading-none">${s || ''}</span>
+                            ${n ? `<span class="note-preview opacity-80">${n}</span>` : ''}
                         </div>
                     </td>`;
                 });
