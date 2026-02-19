@@ -134,7 +134,7 @@
         </div>
     </div>
 
-    <!-- Modale (Gleichbleibend) -->
+    <!-- Modale -->
     <div id="yearViewOverlay" onclick="closeYearModal()">
         <div class="glass p-8 rounded-3xl w-full md:w-[450px] shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
             <h3 class="text-xl font-black text-center flex items-center justify-center gap-3 text-current">
@@ -149,7 +149,6 @@
         </div>
     </div>
 
-    <!-- Notiz Modal -->
     <div id="noteModalOverlay">
         <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
             <h3 class="text-lg font-black text-center text-current flex items-center justify-center gap-2">
@@ -168,42 +167,46 @@
 
     <!-- Main Header -->
     <div class="flex flex-col h-full w-full relative z-10 overflow-hidden">
-        <header class="glass m-2 md:m-4 p-3 md:p-4 rounded-2xl shadow-2xl no-print flex flex-col gap-3">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
-                        <i data-lucide="calendar" class="text-white" size="20"></i>
-                    </div>
-                    <div>
-                        <h1 class="text-lg font-extrabold tracking-tight text-current leading-tight">Dienstplan <span class="text-blue-400 italic text-xs">PRO</span></h1>
-                        <p class="text-[9px] text-slate-500 uppercase font-bold tracking-wider" id="syncLabel">Station: Notaufnahme</p>
-                    </div>
+        <header class="glass m-2 md:m-4 p-3 rounded-2xl shadow-2xl no-print flex items-center justify-between gap-4">
+            <!-- Brand & Station -->
+            <div class="flex items-center gap-3 shrink-0">
+                <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <i data-lucide="calendar" class="text-white" size="20"></i>
                 </div>
-
-                <div class="flex items-center gap-2">
-                    <button id="themeToggle" onclick="toggleTheme()" class="p-2 glass rounded-xl text-current">
-                        <i data-lucide="moon" id="themeIcon" size="18"></i>
-                    </button>
-                    <button id="saveBtn" onclick="saveData()" class="p-2 bg-blue-600 text-white rounded-xl shadow-lg">
-                        <i data-lucide="save" id="saveIcon" size="18"></i>
-                    </button>
+                <div class="hidden sm:block">
+                    <h1 class="text-lg font-black tracking-tight leading-none mb-0.5">Dienstplan <span class="text-blue-400 italic text-[10px]">PRO</span></h1>
+                    <p class="text-[9px] text-slate-500 uppercase font-bold tracking-wider" id="syncLabel">Helios Homberg</p>
                 </div>
             </div>
 
-            <div class="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar pb-1">
-                <div class="flex flex-col items-center gap-0">
-                    <div class="flex items-center gap-1 bg-black/5 p-1 rounded-xl border border-white/10">
-                        <button onclick="changeMonth(-1)" class="p-1.5 hover:bg-white/20 rounded-lg text-current"><i data-lucide="chevron-left" size="16"></i></button>
-                        <div id="monthLabel" onclick="openYearModal()" class="px-2 font-black text-[10px] md:text-sm min-w-[100px] text-center uppercase text-current whitespace-nowrap">Monat</div>
-                        <button onclick="changeMonth(1)" class="p-1.5 hover:bg-white/20 rounded-lg text-current"><i data-lucide="chevron-right" size="16"></i></button>
-                    </div>
-                    <!-- Arbeitstage Anzeige unter dem Monat -->
-                    <div id="headerWorkingDays" class="text-[9px] font-bold text-blue-500/80 uppercase tracking-tighter text-center -mt-0.5">-- Arbeitstage</div>
+            <!-- Consolidated Control Bar -->
+            <div class="flex items-center gap-2 bg-black/5 p-1 rounded-2xl border border-white/5 ml-auto overflow-x-auto no-scrollbar">
+                <!-- Navigation Pille -->
+                <div class="flex items-center bg-black/20 rounded-xl p-0.5 border border-white/5 shrink-0">
+                    <button onclick="changeMonth(-1)" class="p-1.5 hover:bg-white/10 rounded-lg text-current transition-colors"><i data-lucide="chevron-left" size="14"></i></button>
+                    <div id="monthLabel" onclick="openYearModal()" class="px-3 font-black text-[11px] uppercase cursor-pointer hover:text-blue-400 min-w-[110px] text-center text-current">Monat</div>
+                    <button onclick="changeMonth(1)" class="p-1.5 hover:bg-white/10 rounded-lg text-current transition-colors"><i data-lucide="chevron-right" size="14"></i></button>
+                </div>
+                
+                <!-- Arbeitstage Badge -->
+                <div id="headerWorkingDays" class="px-3 py-2 bg-blue-500/10 text-blue-400 text-[10px] font-black rounded-xl border border-blue-500/20 hidden md:block shrink-0">
+                    -- Arbeitstage
                 </div>
 
-                <div class="flex gap-1">
-                    <button onclick="openColumnModal()" class="p-2 glass rounded-xl text-current"><i data-lucide="settings-2" size="16"></i></button>
-                    <button onclick="openAddEmpOverlay()" class="p-2 bg-emerald-500/15 text-emerald-600 rounded-xl border border-emerald-500/20"><i data-lucide="user-plus" size="16"></i></button>
+                <!-- Vertical Divider -->
+                <div class="w-px h-6 bg-white/10 mx-1 hidden sm:block shrink-0"></div>
+
+                <!-- Action Group -->
+                <div class="flex items-center gap-1 shrink-0">
+                    <button onclick="openColumnModal()" class="p-2 hover:bg-white/10 rounded-xl text-slate-400 transition-all" title="Einstellungen"><i data-lucide="settings-2" size="16"></i></button>
+                    <button onclick="openAddEmpOverlay()" class="p-2 hover:bg-emerald-500/20 rounded-xl text-emerald-500 transition-all" title="Personal hinzufügen"><i data-lucide="user-plus" size="16"></i></button>
+                    <button id="toggleWarningBtn" onclick="toggleWarnings()" class="p-2 hover:bg-rose-500/20 rounded-xl text-rose-500 transition-all" title="Warnungen"><i data-lucide="alert-triangle" size="16"></i></button>
+                    <button id="themeToggle" onclick="toggleTheme()" class="p-2 hover:bg-white/10 rounded-xl text-slate-400 transition-all"><i data-lucide="moon" id="themeIcon" size="16"></i></button>
+                    
+                    <button id="saveBtn" onclick="saveData()" class="ml-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[11px] font-black shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all active:scale-95">
+                        <i data-lucide="save" id="saveIcon" size="14"></i>
+                        <span class="hidden lg:inline">Sichern</span>
+                    </button>
                 </div>
             </div>
         </header>
@@ -227,19 +230,19 @@
         </div>
     </div>
 
-    <!-- Weitere Modale (Mitarbeiter bearbeiten, Slider etc.) -->
+    <!-- Modale für Mitarbeiter & Slider -->
     <div id="editEmpOverlay">
         <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
             <h3 class="text-lg font-bold text-center text-current">Mitarbeiter bearbeiten</h3>
             <div class="flex flex-col gap-4 text-current">
-                <input type="text" id="editEmpNameInput" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm">
-                <input type="text" id="editEmpRoleInput" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm">
+                <input type="text" id="editEmpNameInput" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none">
+                <input type="text" id="editEmpRoleInput" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none">
             </div>
             <div class="flex gap-2">
-                <button onclick="closeEditModal()" class="flex-1 py-3 rounded-xl bg-black/5">Abbrechen</button>
+                <button onclick="closeEditModal()" class="flex-1 py-3 rounded-xl bg-black/5 text-current">Abbrechen</button>
                 <button onclick="applyEditEmployee()" class="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold">Speichern</button>
             </div>
-            <button onclick="confirmDeleteEmployee()" class="w-full py-3 border border-rose-500 text-rose-500 rounded-xl text-xs font-bold mt-2">Entfernen</button>
+            <button onclick="confirmDeleteEmployee()" class="w-full py-3 border border-rose-500 text-rose-500 rounded-xl text-xs font-bold mt-2">Mitarbeiter entfernen</button>
         </div>
     </div>
 
@@ -254,7 +257,7 @@
                 <input type="range" id="statusSlider" min="-100" max="250" step="1" oninput="updateSliderLabel()" class="w-full h-4 bg-black/10 rounded-lg appearance-none cursor-pointer accent-blue-600">
             </div>
             <div class="flex gap-2">
-                <button onclick="closeModal()" class="flex-1 py-3 rounded-xl bg-black/5">Abbrechen</button>
+                <button onclick="closeModal()" class="flex-1 py-3 rounded-xl bg-black/5 text-current">Abbrechen</button>
                 <button onclick="applySliderValue()" class="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold">Anwenden</button>
             </div>
         </div>
@@ -264,12 +267,12 @@
         <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-4 text-current">
             <h3 class="text-lg font-bold text-center">Neuer Kollege</h3>
             <div class="flex flex-col gap-3">
-                <input type="text" id="newEmpName" placeholder="Name, Vorname" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm">
-                <input type="text" id="newEmpRole" placeholder="Rolle" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm">
-                <input type="number" id="newEmpStatus" value="100" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm">
+                <input type="text" id="newEmpName" placeholder="Name, Vorname" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none">
+                <input type="text" id="newEmpRole" placeholder="Rolle" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none">
+                <input type="number" id="newEmpStatus" value="100" class="bg-black/5 border border-white/10 rounded-xl p-3 text-sm focus:outline-none">
             </div>
             <div class="flex gap-2">
-                <button onclick="closeAddEmpOverlay()" class="flex-1 py-3 rounded-xl bg-black/5">Abbrechen</button>
+                <button onclick="closeAddEmpOverlay()" class="flex-1 py-3 rounded-xl bg-black/5 text-current">Abbrechen</button>
                 <button onclick="addNewEmployee()" class="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-bold">Hinzufügen</button>
             </div>
         </div>
@@ -315,7 +318,7 @@
             K:  { label: 'Krank', color: 'bg-rose-500/90', textColor: 'text-white', hours: 7.7 }
         };
 
-        let EMPLOYEES = [...DEFAULT_EMPLOYEES]; // Starte IMMER mit den Standard-Daten
+        let EMPLOYEES = [...DEFAULT_EMPLOYEES];
         let roster = JSON.parse(localStorage.getItem('helios_roster')) || {};
         let rosterNotes = JSON.parse(localStorage.getItem('helios_roster_notes')) || {};
         
@@ -330,7 +333,6 @@
         async function initFirebase() {
             if (!window.firebaseCore) return;
             const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, getFirestore, onAuthStateChanged } = window.firebaseCore;
-            
             const configStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
             if (!configStr) return;
 
@@ -338,7 +340,6 @@
                 const app = initializeApp(JSON.parse(configStr));
                 auth = getAuth(app);
                 db = getFirestore(app);
-                
                 const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
                 if (token) await signInWithCustomToken(auth, token);
                 else await signInAnonymously(auth);
@@ -346,8 +347,7 @@
                 onAuthStateChanged(auth, (u) => {
                     user = u;
                     if (user) {
-                        document.getElementById('syncLabel').innerText = `Sync: ${user.uid.substring(0,5)}`;
-                        loadCloudData();
+                        document.getElementById('syncLabel').innerText = `Helios Homberg | Sync`; loadCloudData();
                     }
                 });
             } catch (e) { console.error("Firebase init failed", e); }
@@ -361,7 +361,6 @@
                 const snap = await getDoc(docRef);
                 if (snap.exists()) {
                     const data = snap.data();
-                    // NUR überschreiben, wenn Cloud-Daten wirklich vorhanden sind
                     if (data.employees && data.employees.length > 0) EMPLOYEES = data.employees;
                     if (data.roster) roster = data.roster;
                     if (data.rosterNotes) rosterNotes = data.rosterNotes;
@@ -376,7 +375,6 @@
             localStorage.setItem('helios_employees', JSON.stringify(EMPLOYEES));
             localStorage.setItem('helios_roster', JSON.stringify(roster));
             localStorage.setItem('helios_roster_notes', JSON.stringify(rosterNotes));
-            
             const saveIcon = document.getElementById('saveIcon');
             saveIcon.classList.add('animate-spin-fast');
 
@@ -384,14 +382,10 @@
                 const { doc, setDoc, serverTimestamp } = window.firebaseCore;
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rosterPlan', 'main');
                 try {
-                    await setDoc(docRef, {
-                        employees: EMPLOYEES, roster: roster, rosterNotes: rosterNotes, shifts: SHIFT_TYPES, updatedAt: serverTimestamp()
-                    }, { merge: true });
+                    await setDoc(docRef, { employees: EMPLOYEES, roster: roster, rosterNotes: rosterNotes, shifts: SHIFT_TYPES, updatedAt: serverTimestamp() }, { merge: true });
                     showToast("Sync erfolgreich", "cloud-check");
                 } catch (e) { showToast("Sync Fehler", "alert-triangle"); }
-            } else {
-                showToast("Lokal gesichert", "save");
-            }
+            } else { showToast("Lokal gesichert", "save"); }
             setTimeout(() => saveIcon.classList.remove('animate-spin-fast'), 800);
         }
 
@@ -485,15 +479,13 @@
                 ${dHTML}`;
                 body.appendChild(tr);
             });
-            renderTableFooter(days, dailyCounts, hidden);
-            renderShiftPalette();
-            lucide.createIcons();
+            renderTableFooter(days, dailyCounts, hidden); renderShiftPalette(); lucide.createIcons();
         }
 
         function renderTableFooter(days, dailyCounts, hidden) {
             const foot = document.getElementById('tableFoot'); foot.innerHTML = "";
-            const active = Object.keys(SHIFT_TYPES).filter(s => shiftCounterSettings[s]);
-            active.forEach((sCode, sIdx) => {
+            const active = Object.keys(SHIFT_TYPES).filter(s => s !== 'X');
+            active.forEach((sCode) => {
                 const sInfo = SHIFT_TYPES[sCode];
                 let fHTML = `<tr class="bg-[var(--bg-color)]/95 backdrop-blur-sm text-[9px] font-black">
                     <td class="p-2 sticky-left name-col-bg border-r border-black/5 flex items-center gap-2">
@@ -559,8 +551,7 @@
 
         window.onload = async () => {
             if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
-            renderRoster(); // ERSTER RENDER MIT DEFAULTS
-            await initFirebase(); // DANN CLOUD SYNC
+            renderRoster(); await initFirebase();
         };
     </script>
 </body>
