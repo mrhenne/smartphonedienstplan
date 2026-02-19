@@ -13,6 +13,7 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // Firebase Core in das globale Window-Objekt hängen für den Zugriff im Rest des Scripts
         window.firebaseCore = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, doc, setDoc, getDoc, collection, onSnapshot, serverTimestamp };
     </script>
 
@@ -128,6 +129,21 @@
             to { transform: rotate(360deg); }
         }
         .animate-spin-fast { animation: spin 0.8s linear infinite; }
+
+        /* Zoom Slider Styling */
+        input[type=range].zoom-slider::-webkit-slider-runnable-track {
+            background: rgba(255,255,255,0.1);
+            height: 4px;
+            border-radius: 2px;
+        }
+        input[type=range].zoom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: #3b82f6;
+            margin-top: -4px;
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -139,7 +155,7 @@
         </div>
     </div>
 
-    <!-- Jahresübersicht Modal -->
+    <!-- Modale (Settings, Year, Note etc.) -->
     <div id="yearViewOverlay" onclick="closeYearModal()">
         <div class="glass p-8 rounded-3xl w-full md:w-[450px] shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
             <h3 class="text-xl font-black text-center flex items-center justify-center gap-3 text-current">
@@ -154,19 +170,10 @@
         </div>
     </div>
 
-    <!-- Ansicht/Spalten Modal -->
     <div id="columnOverlay" onclick="closeColumnModal(event)">
         <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-4 overflow-y-auto max-h-[90vh]" onclick="event.stopPropagation()">
             <h3 class="text-lg font-bold text-center text-current">Einstellungen</h3>
-            
             <div class="border-b border-white/10 pb-4 mb-2">
-                <p class="text-[10px] uppercase font-black text-slate-500 mb-2">Konfiguration</p>
-                <button onclick="closeColumnModal(); openShiftModal()" class="w-full py-3 bg-blue-600/20 border border-blue-500/40 text-blue-500 rounded-xl text-[11px] font-black flex items-center justify-center gap-2">
-                    <i data-lucide="layout-grid" size="14"></i> Dienste verwalten
-                </button>
-            </div>
-
-            <div class="border-b border-white/10 pb-2 mb-2">
                 <p class="text-[10px] uppercase font-black text-slate-500 mb-2">Infospalten</p>
                 <div class="flex flex-col gap-2" id="columnToggleList"></div>
             </div>
@@ -178,24 +185,6 @@
         </div>
     </div>
 
-    <!-- Dienste Modal -->
-    <div id="shiftModalOverlay">
-        <div class="glass p-8 rounded-3xl w-full md:w-[500px] max-h-[90vh] shadow-2xl flex flex-col gap-6 overflow-hidden" onclick="event.stopPropagation()">
-            <h3 class="text-lg font-black text-center text-current">Dienste konfigurieren</h3>
-            <div class="overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3" id="shiftTypeListContainer"></div>
-            <div class="border-t border-white/10 pt-4 flex flex-col gap-4 text-current">
-                <div class="grid grid-cols-3 gap-2">
-                    <input type="text" id="newShiftKey" placeholder="Kürzel" class="bg-black/5 border border-white/10 rounded-xl p-2 text-xs">
-                    <input type="text" id="newShiftLabel" placeholder="Bezeichnung" class="bg-black/5 border border-white/10 rounded-xl p-2 text-xs">
-                    <input type="number" step="0.1" id="newShiftHours" placeholder="Std" class="bg-black/5 border border-white/10 rounded-xl p-2 text-xs">
-                </div>
-                <button onclick="addShiftType()" class="w-full py-3 bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all shadow-lg">Dienstart hinzufügen</button>
-            </div>
-            <button onclick="closeShiftModal()" class="py-4 rounded-xl bg-blue-600 text-white font-bold shadow-xl">Speichern & Schließen</button>
-        </div>
-    </div>
-
-    <!-- Notiz Modal -->
     <div id="noteModalOverlay">
         <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
             <h3 class="text-lg font-black text-center text-current flex items-center justify-center gap-2">
@@ -228,6 +217,15 @@
 
             <!-- Consolidated Control Bar -->
             <div class="flex items-center gap-2 bg-black/5 p-1 rounded-2xl border border-white/5 ml-auto overflow-x-auto no-scrollbar">
+                
+                <!-- Zoom Slider (Reimplemented) -->
+                <div class="hidden lg:flex items-center gap-2 px-3 py-1 bg-black/20 rounded-xl border border-white/5 shrink-0">
+                    <button onclick="adjustZoom(-0.05)" class="text-slate-500 hover:text-white transition-colors"><i data-lucide="minus-circle" size="14"></i></button>
+                    <input type="range" id="zoomSlider" min="0.5" max="1.5" step="0.05" value="1" oninput="adjustZoom(0)" class="w-16 h-1 appearance-none bg-white/10 rounded-full zoom-slider cursor-pointer accent-blue-500">
+                    <button onclick="adjustZoom(0.05)" class="text-slate-500 hover:text-white transition-colors"><i data-lucide="plus-circle" size="14"></i></button>
+                    <span id="zoomText" class="text-[9px] font-black text-blue-500 min-w-[28px]">100%</span>
+                </div>
+
                 <!-- Navigation Pille -->
                 <div class="flex items-center bg-black/20 rounded-xl p-0.5 border border-white/5 shrink-0">
                     <button onclick="changeMonth(-1)" class="p-1.5 hover:bg-white/10 rounded-lg text-current transition-colors"><i data-lucide="chevron-left" size="14"></i></button>
@@ -256,12 +254,14 @@
         </header>
 
         <div class="flex flex-1 overflow-hidden relative mb-20 md:mb-0">
+            <!-- Shift Palette Side -->
             <aside id="mobileShiftContainer" class="fixed bottom-0 left-0 w-full z-[100] md:relative md:w-20 lg:w-48 p-2 md:p-0 no-print">
                 <div class="glass p-3 md:p-4 rounded-t-3xl md:rounded-2xl h-full flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-y-auto no-scrollbar">
                     <div id="shiftPalette" class="flex flex-row md:flex-col gap-2 items-center"></div>
                 </div>
             </aside>
 
+            <!-- Table Main Area -->
             <main class="flex-1 glass m-2 md:m-4 mt-0 rounded-2xl md:rounded-3xl overflow-hidden flex flex-col shadow-2xl relative">
                 <div class="overflow-x-auto overflow-y-auto flex-1 custom-scrollbar" id="tableContainer">
                     <table class="w-full border-separate border-spacing-0" id="rosterTable">
@@ -274,7 +274,7 @@
         </div>
     </div>
 
-    <!-- Modale für Mitarbeiter & Slider -->
+    <!-- Modals for Editing (Names, Slider, Add) -->
     <div id="editEmpOverlay">
         <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
             <h3 class="text-lg font-bold text-center text-current">Mitarbeiter bearbeiten</h3>
@@ -373,7 +373,7 @@
         let editingField = 'status';
         let noteTarget = null;
 
-        // --- Firebase Integration ---
+        // --- Firebase Integration (Corrected for Canvas Rules) ---
         async function initFirebase() {
             if (!window.firebaseCore) return;
             const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, getFirestore, onAuthStateChanged } = window.firebaseCore;
@@ -384,23 +384,33 @@
                 const app = initializeApp(JSON.parse(configStr));
                 auth = getAuth(app);
                 db = getFirestore(app);
+                
+                // Rule 3: Auth BEFORE Queries. await registration.
                 const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                if (token) await signInWithCustomToken(auth, token);
-                else await signInAnonymously(auth);
+                if (token) {
+                    await signInWithCustomToken(auth, token);
+                } else {
+                    await signInAnonymously(auth);
+                }
 
                 onAuthStateChanged(auth, (u) => {
                     user = u;
                     if (user) {
                         document.getElementById('syncLabel').innerText = `Helios Duisburg | Online`;
+                        // Erst laden, wenn Auth garantiert ist
                         loadCloudData();
                     }
                 });
-            } catch (e) { console.error("Firebase Init Fehler:", e); }
+            } catch (e) { 
+                console.error("Firebase Auth Fehler:", e);
+                showToast("Cloud Fehler", "cloud-off");
+            }
         }
 
         async function loadCloudData() {
             if (!user || !db) return;
             const { doc, getDoc } = window.firebaseCore;
+            // Rule 1: Correct Path
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rosterPlan', 'main');
             try {
                 const snap = await getDoc(docRef);
@@ -411,26 +421,41 @@
                     if (data.rosterNotes) rosterNotes = data.rosterNotes;
                     if (data.shifts) SHIFT_TYPES = data.shifts;
                     renderRoster();
-                    showToast("Synchronisiert", "cloud");
+                    showToast("Cloud-Daten geladen", "cloud");
                 }
             } catch (e) { console.error("Cloud-Laden Fehler:", e); }
         }
 
         async function saveData() {
+            // Lokal Backup
             localStorage.setItem('helios_employees', JSON.stringify(EMPLOYEES));
             localStorage.setItem('helios_roster', JSON.stringify(roster));
             localStorage.setItem('helios_roster_notes', JSON.stringify(rosterNotes));
+            
             const saveIcon = document.getElementById('saveIcon');
             saveIcon.classList.add('animate-spin-fast');
 
+            // Rule 3: Guard operation with user check
             if (user && db) {
                 const { doc, setDoc, serverTimestamp } = window.firebaseCore;
+                // Rule 1: Correct Path
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rosterPlan', 'main');
                 try {
-                    await setDoc(docRef, { employees: EMPLOYEES, roster: roster, rosterNotes: rosterNotes, shifts: SHIFT_TYPES, updatedAt: serverTimestamp() }, { merge: true });
-                    showToast("In Cloud gesichert", "cloud-check");
-                } catch (e) { showToast("Sync Fehler", "alert-circle"); }
-            } else { showToast("Lokal gesichert", "save"); }
+                    await setDoc(docRef, { 
+                        employees: EMPLOYEES, 
+                        roster: roster, 
+                        rosterNotes: rosterNotes, 
+                        shifts: SHIFT_TYPES, 
+                        updatedAt: serverTimestamp() 
+                    }, { merge: true });
+                    showToast("Erfolgreich synchronisiert", "cloud-check");
+                } catch (e) { 
+                    showToast("Cloud Speicherfehler", "alert-circle"); 
+                    console.error("Cloud Save Error:", e);
+                }
+            } else { 
+                showToast("Lokal gesichert (Offline)", "save"); 
+            }
             setTimeout(() => saveIcon.classList.remove('animate-spin-fast'), 800);
         }
 
@@ -451,6 +476,17 @@
             return count;
         }
 
+        // --- Zoom Helper ---
+        function adjustZoom(delta) {
+            const slider = document.getElementById('zoomSlider');
+            if(!slider) return;
+            let val = delta === 0 ? parseFloat(slider.value) : parseFloat(slider.value) + delta;
+            val = Math.max(0.5, Math.min(1.5, val));
+            slider.value = val;
+            document.documentElement.style.setProperty('--zoom-factor', val);
+            document.getElementById('zoomText').innerText = Math.round(val * 100) + '%';
+        }
+
         // --- Core Render ---
         function renderRoster() {
             const year = currentDate.getFullYear(), month = currentDate.getMonth();
@@ -463,7 +499,6 @@
             document.getElementById('monthLabel').innerText = currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' });
             document.getElementById('headerWorkingDays').innerText = `${workDays} Arbeitstage`;
             
-            // Berechnung der täglichen Besetzung
             const dailyCounts = {};
             days.forEach(day => {
                 const k = day.toISOString().split('T')[0];
@@ -488,7 +523,6 @@
             days.forEach(day => {
                 const k = day.toISOString().split('T')[0];
                 const isH = !!holidays[k], isW = day.getDay() === 0 || day.getDay() === 6;
-                // Warn-Logik: Mind. 2 Personen in FD, SD, ND
                 const isWarn = showWarnings && ((dailyCounts[k].FD || 0) < 2 || (dailyCounts[k].SD || 0) < 2 || (dailyCounts[k].ND || 0) < 2);
 
                 headHTML += `<th class="p-2 border-b border-black/5 min-w-[40px] ${isH ? 'holiday-cell' : (isW ? 'weekend-cell' : '')} ${isWarn ? 'warning-cell' : ''}">
@@ -511,7 +545,6 @@
                 days.forEach(day => {
                     const k = day.toISOString().split('T')[0]; const s = eRost[k], n = eNote[k];
                     if (s && SHIFT_TYPES[s]) ist += SHIFT_TYPES[s].hours;
-                    
                     const isWarn = showWarnings && ((dailyCounts[k].FD || 0) < 2 || (dailyCounts[k].SD || 0) < 2 || (dailyCounts[k].ND || 0) < 2);
 
                     dHTML += `<td onclick="handleCellClick('${emp.id}', '${k}', '${emp.name}')" class="p-0.5 border-r border-black/5 relative ${holidays[k] ? 'holiday-cell' : (day.getDay()===0||day.getDay()===6 ? 'weekend-cell' : '')} ${isWarn ? 'warning-cell' : ''}">
@@ -540,9 +573,7 @@
 
         function renderTableFooter(days, dailyCounts, hidden) {
             const foot = document.getElementById('tableFoot'); foot.innerHTML = "";
-            // Filtert jetzt korrekt nach den gewählten Einstellungen
             const active = Object.keys(SHIFT_TYPES).filter(s => shiftCounterSettings[s] && s !== 'X');
-            
             active.forEach((sCode) => {
                 const sInfo = SHIFT_TYPES[sCode];
                 let fHTML = `<tr class="bg-[var(--bg-color)]/95 backdrop-blur-sm text-[9px] font-black">
@@ -551,12 +582,9 @@
                         <span class="opacity-70 truncate uppercase tracking-tighter">${sInfo.label}</span>
                     </td>
                     <td colspan="5" class="p-2 border-r border-black/5 text-right opacity-50 ${hidden('status') && hidden('soll') && hidden('ist') && hidden('diff') && hidden('prev') ? 'hidden' : ''}">Summe:</td>`;
-                
                 days.forEach(day => {
-                    const k = day.toISOString().split('T')[0];
-                    const count = dailyCounts[k][sCode] || 0;
+                    const k = day.toISOString().split('T')[0], count = dailyCounts[k][sCode] || 0;
                     const isWarn = showWarnings && (sCode === 'FD' || sCode === 'SD' || sCode === 'ND') && count < 2;
-                    
                     fHTML += `<td class="p-1 text-center border-r border-black/5 ${day.getDay()===0||day.getDay()===6?'weekend-cell':''} ${isWarn ? 'text-rose-500 font-black underline decoration-2' : ''}">${count}</td>`;
                 });
                 foot.innerHTML += fHTML + `</tr>`;
@@ -576,11 +604,8 @@
         function toggleWarnings() { 
             showWarnings = !showWarnings; 
             const btn = document.getElementById('toggleWarningBtn');
-            if(showWarnings) {
-                btn.classList.add('bg-rose-500/30', 'ring-2', 'ring-rose-500/50');
-            } else {
-                btn.classList.remove('bg-rose-500/30', 'ring-2', 'ring-rose-500/50');
-            }
+            btn.classList.toggle('bg-rose-500/30', showWarnings);
+            btn.classList.toggle('ring-2', showWarnings);
             renderRoster(); 
         }
 
@@ -600,6 +625,7 @@
 
         function changeMonth(o) { currentDate.setMonth(currentDate.getMonth() + o); renderRoster(); }
         function toggleTheme() { document.body.classList.toggle('light-mode'); localStorage.setItem('theme', document.body.classList.contains('light-mode')?'light':'dark'); }
+        
         function showToast(m, i) { 
             const t = document.getElementById('toast'); 
             document.getElementById('toastMessage').innerText = m; 
@@ -624,7 +650,6 @@
         function closeAddEmpOverlay() { document.getElementById('addEmpOverlay').style.display = 'none'; }
         function addNewEmployee() { const n = document.getElementById('newEmpName').value; if(!n) return; EMPLOYEES.push({ id: Date.now().toString(), name: n, role: document.getElementById('newEmpRole').value || 'Pflege', status: document.getElementById('newEmpStatus').value+'%', prevOvertime: 0 }); renderRoster(); closeAddEmpOverlay(); saveData(); }
 
-        // --- Modale & Settings Functions ---
         function openColumnModal() {
             const colList = document.getElementById('columnToggleList'); 
             if(colList) {
@@ -704,6 +729,7 @@
             window.toggleWarnings = toggleWarnings;
             window.toggleColumn = toggleColumn;
             window.toggleShiftCounter = toggleShiftCounter;
+            window.adjustZoom = adjustZoom;
         };
     </script>
 </body>
