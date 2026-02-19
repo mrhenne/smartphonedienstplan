@@ -128,6 +128,63 @@
             .name-col-bg { min-width: 140px !important; width: 140px !important; }
         }
 
+        /* --- PRINT STYLES --- */
+        @media print {
+            @page {
+                size: A3 landscape;
+                margin: 5mm;
+            }
+            body {
+                background: white !important;
+                color: black !important;
+                overflow: visible !important;
+                height: auto !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            main {
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                background: transparent !important;
+                width: 100% !important;
+                overflow: visible !important;
+            }
+            #tableContainer {
+                overflow: visible !important;
+                height: auto !important;
+                max-height: none !important;
+            }
+            #rosterTable {
+                zoom: 0.8 !important; /* Etwas verkleinern für A3/A4 */
+                transform: none !important;
+                width: 100% !important;
+                border-collapse: collapse !important;
+            }
+            .name-col-bg {
+                background: white !important;
+                box-shadow: none !important;
+                border-right: 1px solid #ddd !important;
+            }
+            th, td {
+                border: 0.5pt solid #ccc !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .holiday-cell { background-color: #fef3c7 !important; }
+            .weekend-cell { background-color: #f1f5f9 !important; }
+            .sticky-left, .sticky {
+                position: static !important;
+            }
+            /* Header Simulation für den Druck */
+            header {
+                display: block !important;
+                border-bottom: 2px solid black !important;
+                margin-bottom: 10px !important;
+            }
+        }
+
         @keyframes spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
@@ -277,6 +334,13 @@
                     <button onclick="openAddEmpOverlay()" class="p-2 hover:bg-emerald-500/20 rounded-xl text-emerald-500 transition-all" title="Personal hinzufügen"><i data-lucide="user-plus" size="16"></i></button>
                     <button id="toggleWarningBtn" onclick="toggleWarnings()" class="p-2 hover:bg-rose-500/20 rounded-xl text-rose-500 transition-all" title="Warnungen"><i data-lucide="alert-triangle" size="16"></i></button>
                     <button id="themeToggle" onclick="toggleTheme()" class="p-2 hover:bg-white/10 rounded-xl text-slate-400 transition-all"><i data-lucide="moon" id="themeIcon" size="16"></i></button>
+                    
+                    <!-- NEU: EXPORT BUTTON -->
+                    <button onclick="exportToPDF()" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-[11px] font-black shadow-lg flex items-center gap-2 transition-all active:scale-95">
+                        <i data-lucide="file-down" size="14"></i>
+                        <span class="hidden lg:inline">Exportieren</span>
+                    </button>
+
                     <button id="saveBtn" onclick="saveData()" class="ml-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[11px] font-black shadow-lg shadow-blue-600/20 flex items-center gap-2 transition-all active:scale-95">
                         <i data-lucide="save" id="saveIcon" size="14"></i>
                         <span class="hidden lg:inline">Sichern</span>
@@ -284,6 +348,20 @@
                 </div>
             </div>
         </header>
+
+        <!-- Druck-Vorschau Header (nur beim Druck sichtbar) -->
+        <div class="hidden print:block mb-4 border-b-2 border-slate-900 pb-2">
+            <div class="flex justify-between items-end">
+                <div>
+                    <h1 class="text-2xl font-bold">Dienstplan Helios Duisburg - Notaufnahme</h1>
+                    <p class="text-sm text-slate-600 uppercase font-black tracking-widest" id="printMonthLabel">Monat Jahr</p>
+                </div>
+                <div class="text-right text-xs">
+                    <p>Erstellt am: <span id="printCurrentDate"></span></p>
+                    <p>Status: Entwurf / Freigegeben</p>
+                </div>
+            </div>
+        </div>
 
         <div class="flex flex-1 overflow-hidden relative mb-20 md:mb-0">
             <aside id="mobileShiftContainer" class="fixed bottom-0 left-0 w-full z-[100] md:relative md:w-20 lg:w-48 p-2 md:p-0 no-print">
@@ -388,7 +466,7 @@
         let editingField = 'status';
         let noteTarget = null;
 
-        // --- Firebase Integration (Canvas Protocol) ---
+        // --- Firebase Integration ---
         async function initFirebase() {
             if (!window.firebaseCore) return;
             const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, getFirestore, onAuthStateChanged } = window.firebaseCore;
@@ -400,7 +478,6 @@
                 auth = getAuth(app);
                 db = getFirestore(app);
                 
-                // Regel 3: Auth vor jeder Abfrage
                 const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
                 if (token) await signInWithCustomToken(auth, token);
                 else await signInAnonymously(auth);
@@ -418,7 +495,6 @@
         async function loadCloudData() {
             if (!user || !db) return;
             const { doc, getDoc } = window.firebaseCore;
-            // Regel 1: Strikte Pfade
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rosterPlan', 'main');
             try {
                 const snap = await getDoc(docRef);
@@ -436,7 +512,6 @@
         }
 
         async function saveData() {
-            // Lokal Backup
             localStorage.setItem('helios_employees', JSON.stringify(EMPLOYEES));
             localStorage.setItem('helios_roster', JSON.stringify(roster));
             localStorage.setItem('helios_roster_notes', JSON.stringify(rosterNotes));
@@ -460,6 +535,16 @@
                 } catch (e) { showToast("Sync fehlgeschlagen", "alert-triangle"); }
             } else { showToast("Lokal gesichert", "save"); }
             setTimeout(() => saveIcon.classList.remove('animate-spin-fast'), 800);
+        }
+
+        // --- Export & Print ---
+        function exportToPDF() {
+            // Aktuellen Monat für den Druck setzen
+            document.getElementById('printMonthLabel').innerText = currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' });
+            document.getElementById('printCurrentDate').innerText = new Date().toLocaleDateString('de-DE');
+            
+            // Druckdialog öffnen
+            window.print();
         }
 
         // --- Drag & Drop für Kollegen ---
@@ -530,9 +615,7 @@
                 textColor: 'text-white' 
             };
             
-            // In Counter-Settings aufnehmen
             shiftCounterSettings[k] = true;
-            
             renderShiftTypeList();
             document.getElementById('newShiftKey').value = '';
             document.getElementById('newShiftLabel').value = '';
@@ -562,7 +645,7 @@
             return count;
         }
 
-        // --- Render Kernschleife ---
+        // --- Render ---
         function renderRoster() {
             const year = currentDate.getFullYear(), month = currentDate.getMonth();
             const days = []; const d = new Date(year, month, 1);
@@ -601,7 +684,7 @@
                 const isWarn = showWarnings && ((dailyCounts[k].FD || 0) < 2 || (dailyCounts[k].SD || 0) < 2 || (dailyCounts[k].ND || 0) < 2);
                 headHTML += `<th class="p-2 border-b border-black/5 min-w-[40px] ${isH ? 'holiday-cell' : (isW ? 'weekend-cell' : '')} ${isWarn ? 'warning-cell' : ''}">
                     <div class="flex flex-col items-center">
-                        <span class="text-[8px] opacity-50 uppercase">${day.toLocaleDateString('de-DE', { weekday: 'short' })}</span>
+                        <span class="text-[8px] opacity-50 uppercase text-slate-500">${day.toLocaleDateString('de-DE', { weekday: 'short' })}</span>
                         <span class="text-xs font-black ${isH ? 'text-orange-500' : ''}">${day.getDate()}</span>
                     </div>
                 </th>`;
@@ -637,7 +720,7 @@
 
                 const diff = ist - soll;
                 tr.innerHTML = `<td class="p-3 sticky-left name-col-bg border-r border-black/5 shadow-xl flex items-center gap-2">
-                    <i data-lucide="grip-vertical" class="text-slate-500 opacity-30" size="12"></i>
+                    <i data-lucide="grip-vertical" class="text-slate-500 opacity-30 no-print" size="12"></i>
                     <div>
                         <div class="font-black text-[11px] uppercase cursor-pointer hover:text-blue-500" onclick="openEditModal(${idx})">${emp.name}</div>
                         <div class="text-[8px] text-slate-500 truncate uppercase">${emp.role}</div>
@@ -777,6 +860,7 @@
             window.adjustZoom = adjustZoom; window.loadCloudData = loadCloudData;
             window.openShiftModal = openShiftModal; window.closeShiftModal = closeShiftModal;
             window.addShiftType = addShiftType; window.deleteShiftType = deleteShiftType;
+            window.exportToPDF = exportToPDF;
         };
     </script>
 </body>
