@@ -7,10 +7,14 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
+    <!-- Firebase SDKs (Modular) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        window.firebaseCore = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, doc, setDoc, getDoc, collection, onSnapshot, serverTimestamp };
+    </script>
 
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -85,13 +89,21 @@
             box-shadow: inset 0 0 10px rgba(225, 29, 72, 0.2);
         }
 
-        #columnOverlay, #modalOverlay, #addEmpOverlay, #editEmpOverlay, #shiftModalOverlay, #yearViewOverlay {
+        #columnOverlay, #modalOverlay, #addEmpOverlay, #editEmpOverlay, #shiftModalOverlay, #yearViewOverlay, #toast {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
             z-index: 200; align-items: center; justify-content: center;
             padding: 1rem;
+        }
+
+        #toast {
+            background: transparent;
+            backdrop-filter: none;
+            height: auto;
+            top: 1rem;
+            pointer-events: none;
         }
 
         #rosterTable {
@@ -101,38 +113,35 @@
 
         .hidden-col { display: none !important; }
 
-        /* Optimierung für Mobile Sticky Columns */
         .sticky-left {
             position: sticky;
             left: 0;
             z-index: 40;
         }
 
-        @media print {
-            .no-print { display: none !important; }
-            body { background: white !important; color: black !important; overflow: visible !important; }
-            .sticky { position: static !important; }
-        }
-
-        /* Smartphone Fixes */
         @media (max-width: 768px) {
-            .modal-content {
-                width: 100% !important;
-                max-width: none !important;
-                margin: 0;
-                border-radius: 1.5rem 1.5rem 0 0 !important;
-                position: absolute;
-                bottom: 0;
-            }
             #yearViewOverlay .glass { width: 100% !important; height: 80vh; overflow-y: auto; }
             .name-col-bg { min-width: 140px !important; width: 140px !important; }
         }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-fast { animation: spin 0.8s linear infinite; }
     </style>
 </head>
 <body class="h-screen flex flex-col">
 
-    <!-- Modale (Inhaltlich identisch, nur Responsive-Klassen hinzugefügt) -->
-    
+    <!-- Toast Notification -->
+    <div id="toast">
+        <div class="glass px-6 py-3 rounded-2xl shadow-2xl border border-white/20 flex items-center gap-3">
+            <div id="toastIcon" class="text-blue-500"></div>
+            <span id="toastMessage" class="text-sm font-bold text-current"></span>
+        </div>
+    </div>
+
+    <!-- Modale -->
     <div id="yearViewOverlay" onclick="closeYearModal()">
         <div class="glass p-6 md:p-8 rounded-3xl w-full md:w-[450px] shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
             <h3 class="text-xl font-black text-center flex items-center justify-center gap-3 text-current">
@@ -149,19 +158,41 @@
 
     <div id="columnOverlay" onclick="closeColumnModal(event)">
         <div class="glass p-6 md:p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-4 overflow-y-auto max-h-[90vh]" onclick="event.stopPropagation()">
-            <h3 class="text-lg font-bold text-center text-current">Ansicht anpassen</h3>
+            <h3 class="text-lg font-bold text-center text-current">Einstellungen</h3>
+            
+            <div class="border-b border-white/10 pb-4 mb-2">
+                <p class="text-[10px] uppercase font-black text-slate-500 mb-2">Konfiguration</p>
+                <button onclick="closeColumnModal(); openShiftModal()" class="w-full py-3 bg-blue-600/20 border border-blue-500/40 text-blue-500 rounded-xl text-[11px] font-black flex items-center justify-center gap-2">
+                    <i data-lucide="layout-grid" size="14"></i> Dienste verwalten
+                </button>
+            </div>
+
+            <div class="border-b border-white/10 pb-4 mb-2">
+                <p class="text-[10px] uppercase font-black text-slate-500 mb-2">Daten-Management</p>
+                <div class="flex flex-col gap-2">
+                    <button onclick="exportData()" class="w-full py-2 bg-blue-500/10 border border-blue-500/30 text-blue-500 rounded-xl text-[11px] font-bold flex items-center justify-center gap-2">
+                        <i data-lucide="download" size="14"></i> Backup herunterladen (.json)
+                    </button>
+                    <label class="w-full py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 rounded-xl text-[11px] font-bold flex items-center justify-center gap-2 cursor-pointer">
+                        <i data-lucide="upload" size="14"></i> Backup einspielen
+                        <input type="file" class="hidden" accept=".json" onchange="importData(event)">
+                    </label>
+                </div>
+            </div>
+
             <div class="border-b border-white/10 pb-2 mb-2">
                 <p class="text-[10px] uppercase font-black text-slate-500 mb-2">Infospalten</p>
                 <div class="flex flex-col gap-2" id="columnToggleList"></div>
             </div>
             <div>
-                <p class="text-[10px] uppercase font-black text-slate-500 mb-2">Schichten zählen (Tages-Statistik)</p>
+                <p class="text-[10px] uppercase font-black text-slate-500 mb-2">Schichten zählen</p>
                 <div class="flex flex-wrap gap-2" id="shiftToggleList"></div>
             </div>
             <button onclick="closeColumnModal()" class="w-full py-4 mt-4 bg-blue-600 text-white rounded-xl font-bold">Fertig</button>
         </div>
     </div>
 
+    <!-- Modale für Mitarbeiter & Dienste -->
     <div id="editEmpOverlay">
         <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
             <h3 class="text-lg font-bold text-center text-current">Mitarbeiter bearbeiten</h3>
@@ -210,8 +241,8 @@
     </div>
 
     <div id="shiftModalOverlay">
-        <div class="glass p-6 md:p-8 rounded-3xl w-full md:w-[500px] max-h-[90vh] shadow-2xl flex flex-col gap-6 overflow-hidden">
-            <h3 class="text-lg font-bold text-center text-current">Dienste konfigurieren</h3>
+        <div class="glass p-6 md:p-8 rounded-3xl w-full md:w-[500px] max-h-[90vh] shadow-2xl flex flex-col gap-6 overflow-hidden" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-black text-center text-current">Dienste konfigurieren</h3>
             <div class="overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3" id="shiftTypeListContainer"></div>
             <div class="border-t border-white/10 pt-4 flex flex-col gap-4 text-current">
                 <div class="grid grid-cols-3 gap-2">
@@ -228,7 +259,6 @@
     <!-- Main Layout -->
     <div class="flex flex-col h-full w-full relative z-10 overflow-hidden">
         
-        <!-- Header: Kompakt für Mobile -->
         <header class="glass m-2 md:m-4 p-3 md:p-4 rounded-2xl shadow-2xl no-print flex flex-col gap-3">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
@@ -237,21 +267,20 @@
                     </div>
                     <div>
                         <h1 class="text-lg font-extrabold tracking-tight text-current leading-tight">Dienstplan <span class="text-blue-400 italic text-xs">PRO</span></h1>
-                        <p class="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Notaufnahme | Duisburg</p>
+                        <p class="text-[9px] text-slate-500 uppercase font-bold tracking-wider" id="syncLabel">Station: Notaufnahme</p>
                     </div>
                 </div>
                 
                 <div class="flex gap-2">
-                    <button id="themeToggle" onclick="toggleTheme()" class="p-2 glass rounded-xl text-current">
+                    <button id="themeToggle" onclick="toggleTheme()" class="p-2 glass rounded-xl text-current transition-all">
                         <i data-lucide="moon" id="themeIcon" size="18"></i>
                     </button>
-                    <button id="saveBtn" onclick="saveData()" class="p-2 bg-blue-600 text-white rounded-xl shadow-lg">
-                        <i data-lucide="save" size="18"></i>
+                    <button id="saveBtn" onclick="saveData()" class="p-2 bg-blue-600 text-white rounded-xl shadow-lg transition-all active:scale-95">
+                        <i data-lucide="save" id="saveIcon" size="18"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- Mobile Controls Row -->
             <div class="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar pb-1">
                 <div class="flex items-center gap-1 bg-black/5 p-1 rounded-xl border border-white/10 shrink-0">
                     <button onclick="changeMonth(-1)" class="p-1.5 hover:bg-white/20 rounded-lg text-current"><i data-lucide="chevron-left" size="16"></i></button>
@@ -265,34 +294,15 @@
                     <button id="toggleWarningBtn" onclick="toggleWarnings()" class="p-2 bg-rose-500/10 text-rose-600 rounded-xl border border-rose-500/20"><i data-lucide="alert-triangle" size="16"></i></button>
                 </div>
             </div>
-
-            <!-- Stats Bar (Hidden on very small screens, shown in header on larger) -->
-            <div class="hidden md:flex justify-between items-center px-2">
-                <div class="flex gap-4">
-                    <div class="text-[10px] font-black text-blue-500 uppercase" id="statWorkingDays">Arbeitstage: --</div>
-                    <div class="text-[10px] font-bold text-slate-500" id="statTargetHours">Soll: --h</div>
-                </div>
-                <div class="flex items-center gap-2 bg-black/5 px-2 py-1 rounded-lg">
-                    <input type="range" id="zoomSlider" min="0.5" max="1.5" step="0.05" value="1" oninput="adjustZoom(0)" class="w-16 h-1 accent-blue-500">
-                    <span id="zoomText" class="text-[9px] font-black text-blue-500">100%</span>
-                </div>
-            </div>
         </header>
 
-        <!-- Main Container -->
         <div class="flex flex-1 overflow-hidden relative mb-20 md:mb-0">
-            <!-- Sidebar / Palette (Mobile: Bottom Bar) -->
             <aside id="mobileShiftContainer" class="fixed bottom-0 left-0 w-full z-[100] md:relative md:w-20 lg:w-48 p-2 md:p-0 no-print">
                 <div class="glass p-3 md:p-4 rounded-t-3xl md:rounded-2xl h-full flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-y-auto no-scrollbar">
-                    <div class="hidden md:flex items-center justify-between mb-2">
-                        <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Dienste</p>
-                        <button onclick="openShiftModal()" class="text-blue-500"><i data-lucide="settings-2" size="12"></i></button>
-                    </div>
                     <div id="shiftPalette" class="flex flex-row md:flex-col gap-2 items-center"></div>
                 </div>
             </aside>
 
-            <!-- Table Container -->
             <main class="flex-1 glass m-2 md:m-4 mt-0 rounded-2xl md:rounded-3xl overflow-hidden flex flex-col shadow-2xl relative">
                 <div class="overflow-x-auto overflow-y-auto flex-1 custom-scrollbar" id="tableContainer">
                     <table class="w-full border-separate border-spacing-0" id="rosterTable">
@@ -306,22 +316,15 @@
     </div>
 
     <script>
-        // --- State & Config (Exact 100% copy of original logic) ---
-        const firebaseConfig = (typeof __firebase_config !== 'undefined' && __firebase_config) ? JSON.parse(__firebase_config) : null;
-        let auth, db;
+        // --- State ---
+        let db, auth, user;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'notaufnahme-duisburg';
-
-        const CONFIG_DOC_PATH = `artifacts/${appId}/public/data/rosterSettings/globalConfig`;
-        const DATA_DOC_PATH = `artifacts/${appId}/public/data/rosterData/mainPlan`;
-
-        let viewSettings = JSON.parse(localStorage.getItem('view_settings')) || {
-            status: true, soll: true, ist: true, diff: true, prev: true, total: true
-        };
         
-        let shiftCounterSettings = JSON.parse(localStorage.getItem('shift_counter_settings')) || {
-            FD: true, SD: true, ND: true, LT: false, U: false, K: false, FE: false
-        };
-
+        // Globale Daten
+        let viewSettings = JSON.parse(localStorage.getItem('view_settings')) || { status: true, soll: true, ist: true, diff: true, prev: true, total: true };
+        let shiftCounterSettings = JSON.parse(localStorage.getItem('shift_counter_settings')) || { FD: true, SD: true, ND: true, LT: false, U: false, K: false, FE: false };
+        
+        // Vollständige Liste der Kollegen
         const DEFAULT_EMPLOYEES = [
             { id: '1', name: 'Adams, Hendrik', role: 'Stationsleitung', status: '100%', prevOvertime: 0 },
             { id: '2', name: 'Fuchsa, Jennifer', role: 'stellv. Leitung', status: '100%', prevOvertime: 0 },
@@ -362,6 +365,91 @@
         let editingEmpIndex = null;
         let editingField = 'status';
 
+        // --- Firebase & Auth ---
+        async function initFirebase() {
+            if (typeof __firebase_config === 'undefined') return;
+            const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, getFirestore, onAuthStateChanged } = window.firebaseCore;
+            
+            const config = JSON.parse(__firebase_config);
+            const app = initializeApp(config);
+            auth = getAuth(app);
+            db = getFirestore(app);
+
+            const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            try {
+                if (token) await signInWithCustomToken(auth, token);
+                else await signInAnonymously(auth);
+            } catch (e) { console.error("Auth failed", e); }
+
+            onAuthStateChanged(auth, (u) => {
+                user = u;
+                if (user) {
+                    document.getElementById('syncLabel').innerText = `Verbunden: ${user.uid.substring(0,6)}...`;
+                    loadCloudData();
+                }
+            });
+        }
+
+        async function loadCloudData() {
+            if (!user) return;
+            const { doc, getDoc } = window.firebaseCore;
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rosterPlan', 'main');
+            try {
+                const snap = await getDoc(docRef);
+                if (snap.exists()) {
+                    const data = snap.data();
+                    if (data.employees && data.employees.length > 0) EMPLOYEES = data.employees;
+                    if (data.roster) roster = data.roster;
+                    if (data.shifts) SHIFT_TYPES = data.shifts;
+                    renderRoster();
+                    showToast("Daten geladen", "cloud");
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function saveData() {
+            localStorage.setItem('helios_employees', JSON.stringify(EMPLOYEES));
+            localStorage.setItem('helios_shifts', JSON.stringify(SHIFT_TYPES));
+            localStorage.setItem('helios_roster', JSON.stringify(roster));
+
+            const saveIcon = document.getElementById('saveIcon');
+            saveIcon.classList.add('animate-spin-fast');
+
+            if (user && db) {
+                const { doc, setDoc, serverTimestamp } = window.firebaseCore;
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rosterPlan', 'main');
+                try {
+                    await setDoc(docRef, {
+                        employees: EMPLOYEES,
+                        roster: roster,
+                        shifts: SHIFT_TYPES,
+                        updatedAt: serverTimestamp()
+                    }, { merge: true });
+                    showToast("Cloud-Sync erfolgreich", "cloud-check");
+                } catch (e) { 
+                    showToast("Sync Fehler", "alert-circle");
+                    console.error(e); 
+                }
+            } else {
+                showToast("Lokal gesichert", "save");
+            }
+
+            setTimeout(() => saveIcon.classList.remove('animate-spin-fast'), 1000);
+        }
+
+        // --- UI Utils ---
+        function showToast(msg, iconName) {
+            const t = document.getElementById('toast');
+            const m = document.getElementById('toastMessage');
+            const i = document.getElementById('toastIcon');
+            m.innerText = msg;
+            i.innerHTML = `<i data-lucide="${iconName}" size="18"></i>`;
+            lucide.createIcons();
+            t.style.display = 'flex';
+            setTimeout(() => t.style.display = 'none', 3000);
+        }
+
+        // --- Logik ---
         function getEasterSunday(year) {
             const f = Math.floor, G = year % 19, C = f(year / 100), H = (C - f(C / 4) - f((8 * C + 13) / 25) + 19 * G + 15) % 30, I = H - f(H / 28) * (1 - f(29 / (H + 1)) * f((21 - G) / 11)), J = (year + f(year / 4) + I + 2 - C + f(C / 4)) % 7, L = I - J, month = 3 + f((L + 40) / 44), day = L + 28 - 31 * f(month / 4);
             return new Date(year, month - 1, day);
@@ -370,7 +458,7 @@
         function getHolidaysNRW(year) {
             const easter = getEasterSunday(year);
             const addDays = (date, days) => { const res = new Date(date); res.setDate(res.getDate() + days); return res.toISOString().split('T')[0]; };
-            return { [`${year}-01-01`]: "Neujahr", [addDays(easter, -2)]: "Karfreitag", [addDays(easter, 1)]: "Ostermontag", [`${year}-05-01`]: "Tag der Arbeit", [addDays(easter, 39)]: "Christi Himmelfahrt", [addDays(easter, 50)]: "Pfingstmontag", [addDays(easter, 60)]: "Fronleichnam", [`${year}-10-03`]: "Einheit", [`${year}-11-01`]: "Allerheiligen", [`${year}-12-25`]: "Weihnachten 1", [`${year}-12-26`]: "Weihnachten 2" };
+            return { [`${year}-01-01`]: "Neujahr", [addDays(easter, -2)]: "Karfreitag", [addDays(easter, 1)]: "Ostermontag", [`${year}-05-01`]: "Tag der Arbeit", [addDays(easter, 39)]: "Christi Himmelfahrt", [addDays(easter, 50)]: "Pfingsten", [addDays(easter, 60)]: "Fronleichnam", [`${year}-10-03`]: "Einheit", [`${year}-11-01`]: "Allerheiligen", [`${year}-12-25`]: "Weihnachten 1", [`${year}-12-26`]: "Weihnachten 2" };
         }
 
         function calculateWorkingDays(year, month) {
@@ -394,8 +482,6 @@
             const monthTargetHours = workingDaysCount * 7.7;
             
             document.getElementById('monthLabel').innerText = currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' });
-            document.getElementById('statWorkingDays').innerText = `Arbeitstage: ${workingDaysCount}`;
-            document.getElementById('statTargetHours').innerText = `Soll (100%): ${monthTargetHours.toFixed(1)}h`;
             
             const dailyCounts = {};
             days.forEach(day => {
@@ -412,13 +498,13 @@
             const hidden = (key) => viewSettings[key] ? '' : 'hidden-col';
 
             let headHTML = `<tr class="sticky top-0 z-40 bg-[var(--table-header-bg)] backdrop-blur-md">
-                <th class="p-3 md:p-4 text-left text-[10px] font-black border-b border-black/10 sticky-left name-col-bg uppercase text-current min-w-[140px]">MITARBEITER</th>
-                <th class="p-3 md:p-4 text-center text-[10px] font-black border-b border-black/10 text-current ${hidden('status')}">Vz/Tz</th>
-                <th class="p-3 md:p-4 text-center text-[10px] font-black border-b border-black/10 text-current ${hidden('soll')}">Soll</th>
-                <th class="p-3 md:p-4 text-center text-[10px] font-black border-b border-black/10 text-current ${hidden('ist')}">Ist</th>
-                <th class="p-3 md:p-4 text-center text-[10px] font-black border-b border-black/10 text-current ${hidden('diff')}">+/-</th>
-                <th class="p-3 md:p-4 text-center text-[10px] font-black border-b border-black/10 text-blue-500 ${hidden('prev')}">Vormt</th>
-                <th class="p-3 md:p-4 text-center text-[10px] font-black border-b border-black/10 text-orange-500 ${hidden('total')}">Gesamt</th>`;
+                <th class="p-3 text-left text-[10px] font-black border-b border-black/10 sticky-left name-col-bg uppercase text-current min-w-[140px]">KOLLEGE</th>
+                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-current ${hidden('status')}">VZ</th>
+                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-current ${hidden('soll')}">Soll</th>
+                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-current ${hidden('ist')}">Ist</th>
+                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-current ${hidden('diff')}">+/-</th>
+                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-blue-500 ${hidden('prev')}">Vmt</th>
+                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-orange-500 ${hidden('total')}">Ges</th>`;
 
             days.forEach(day => {
                 const key = day.toISOString().split('T')[0];
@@ -426,7 +512,7 @@
                 const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                 const isWarn = showWarnings && (dailyCounts[key].FD < 2 || dailyCounts[key].SD < 2 || dailyCounts[key].ND < 2);
                 
-                headHTML += `<th class="p-2 border-b border-black/5 min-w-[40px] md:min-w-[45px] ${isHoliday ? 'holiday-cell' : (isWeekend ? 'weekend-cell' : '')} ${isWarn ? 'warning-cell' : ''}">
+                headHTML += `<th class="p-2 border-b border-black/5 min-w-[40px] ${isHoliday ? 'holiday-cell' : (isWeekend ? 'weekend-cell' : '')} ${isWarn ? 'warning-cell' : ''}">
                     <div class="flex flex-col items-center">
                         <span class="text-[8px] uppercase font-black text-slate-500">${day.toLocaleDateString('de-DE', { weekday: 'short' })}</span>
                         <span class="text-xs font-black ${isHoliday ? 'text-orange-600' : 'text-slate-400'}">${day.getDate()}</span>
@@ -439,7 +525,7 @@
             const body = document.getElementById('tableBody'); body.innerHTML = '';
             EMPLOYEES.forEach((emp, idx) => {
                 const tr = document.createElement('tr');
-                tr.className = 'group row-separator hover:bg-[var(--row-hover)] text-current transition-colors';
+                tr.className = 'group row-separator hover:bg-[var(--row-hover)] text-current';
                 let actual = 0; const empRoster = roster[emp.id] || {};
                 const empTarget = monthTargetHours * ((parseFloat(emp.status) || 100) / 100);
                 
@@ -451,28 +537,34 @@
                     const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                     const isWarn = showWarnings && (dailyCounts[key].FD < 2 || dailyCounts[key].SD < 2 || dailyCounts[key].ND < 2);
                     
-                    daysHTML += `<td onclick="toggleShift('${emp.id}', '${key}')" class="p-0.5 md:p-1 cursor-pointer border-r border-black/5 ${holidays[key] ? 'holiday-cell' : (isWeekend ? 'weekend-cell' : '')} ${isWarn ? 'warning-cell' : ''}">
-                        <div class="h-8 md:h-9 w-full rounded-lg flex items-center justify-center text-[10px] md:text-[11px] font-black transition-all ${s ? `${SHIFT_TYPES[s].color} ${SHIFT_TYPES[s].textColor} shadow-md scale-90` : 'hover:bg-blue-500/10'}">${s || ''}</div>
+                    daysHTML += `<td onclick="toggleShift('${emp.id}', '${key}')" class="p-0.5 cursor-pointer border-r border-black/5 ${holidays[key] ? 'holiday-cell' : (isWeekend ? 'weekend-cell' : '')} ${isWarn ? 'warning-cell' : ''}">
+                        <div class="h-8 w-full rounded-lg flex items-center justify-center text-[10px] font-black transition-all ${s ? `${SHIFT_TYPES[s].color} ${SHIFT_TYPES[s].textColor} shadow-md scale-90` : 'hover:bg-blue-500/10'}">${s || ''}</div>
                     </td>`;
                 });
 
                 const diff = actual - empTarget;
                 const totalÜ = diff + (parseFloat(emp.prevOvertime) || 0);
 
-                tr.innerHTML = `<td class="p-3 md:p-4 sticky-left name-col-bg border-r border-black/5 shadow-xl">
-                    <div class="font-black text-[11px] md:text-[13px] uppercase cursor-pointer hover:text-blue-500" onclick="openEditModal(${idx})">${emp.name}</div>
-                    <div class="text-[8px] text-slate-500 font-bold uppercase tracking-widest truncate">${emp.role}</div>
+                tr.innerHTML = `<td class="p-3 sticky-left name-col-bg border-r border-black/5 shadow-xl">
+                    <div class="font-black text-[11px] uppercase cursor-pointer hover:text-blue-500" onclick="openEditModal(${idx})">${emp.name}</div>
+                    <div class="text-[8px] text-slate-500 font-bold truncate uppercase">${emp.role}</div>
                 </td>
-                <td class="p-1 text-center text-[10px] font-bold text-slate-400 cursor-pointer ${hidden('status')}" onclick="openSliderModal(${idx}, 'status')">${emp.status}</td>
-                <td class="p-1 text-center text-[10px] font-mono text-slate-400 ${hidden('soll')}">${empTarget.toFixed(1)}</td>
-                <td class="p-1 text-center text-[10px] font-black font-mono ${hidden('ist')}">${actual.toFixed(1)}</td>
-                <td class="p-1 text-center text-[10px] font-black font-mono ${diff >= 0 ? 'text-emerald-500' : 'text-rose-500'} ${hidden('diff')}">${diff > 0 ? '+' : ''}${diff.toFixed(1)}</td>
-                <td class="p-1 text-center text-[10px] font-black font-mono text-blue-500 cursor-pointer ${hidden('prev')}" onclick="openSliderModal(${idx}, 'prevOvertime')">${emp.prevOvertime.toFixed(1)}</td>
-                <td class="p-1 text-center text-[10px] font-black font-mono ${totalÜ >= 0 ? 'text-orange-500' : 'text-rose-600'} ${hidden('total')}">${totalÜ > 0 ? '+' : ''}${totalÜ.toFixed(1)}</td>
+                <td class="p-1 text-center text-[9px] font-bold text-slate-400 ${hidden('status')}" onclick="openSliderModal(${idx}, 'status')">${emp.status}</td>
+                <td class="p-1 text-center text-[9px] font-mono text-slate-400 ${hidden('soll')}">${empTarget.toFixed(0)}</td>
+                <td class="p-1 text-center text-[9px] font-black font-mono ${hidden('ist')}">${actual.toFixed(0)}</td>
+                <td class="p-1 text-center text-[9px] font-black font-mono ${diff >= 0 ? 'text-emerald-500' : 'text-rose-500'} ${hidden('diff')}">${diff.toFixed(0)}</td>
+                <td class="p-1 text-center text-[9px] font-black font-mono text-blue-500 ${hidden('prev')}" onclick="openSliderModal(${idx}, 'prevOvertime')">${emp.prevOvertime.toFixed(0)}</td>
+                <td class="p-1 text-center text-[9px] font-black font-mono ${totalÜ >= 0 ? 'text-orange-500' : 'text-rose-600'} ${hidden('total')}">${totalÜ.toFixed(0)}</td>
                 ${daysHTML}`;
                 body.appendChild(tr);
             });
+            
+            renderTableFooter(days, dailyCounts, hidden);
+            renderShiftPalette();
+            lucide.createIcons();
+        }
 
+        function renderTableFooter(days, dailyCounts, hidden) {
             const foot = document.getElementById('tableFoot');
             let footHTML = "";
             const activeCounters = Object.keys(shiftCounterSettings).filter(s => shiftCounterSettings[s]);
@@ -495,37 +587,29 @@
                 footHTML += `</tr>`;
             });
             foot.innerHTML = footHTML;
-            
-            renderShiftPalette();
-            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
-        // --- Die restlichen Funktionen bleiben absolut identisch zum Original ---
-
-        function adjustZoom(delta) {
-            const slider = document.getElementById('zoomSlider');
-            let val = parseFloat(slider.value) + delta;
-            val = Math.max(0.5, Math.min(1.5, val));
-            slider.value = val;
-            document.documentElement.style.setProperty('--zoom-factor', val);
-            document.getElementById('zoomText').innerText = Math.round(val * 100) + '%';
-        }
-
+        // --- Event Handler ---
+        function toggleShift(id, k) { if (!roster[id]) roster[id] = {}; roster[id][k] = (roster[id][k] === activeShift) ? null : activeShift; renderRoster(); }
+        function changeMonth(o) { currentDate.setMonth(currentDate.getMonth() + o); renderRoster(); }
+        function toggleTheme() { let mode = document.body.classList.toggle('light-mode'); localStorage.setItem('theme', mode ? 'light' : 'dark'); renderRoster(); }
+        function toggleWarnings() { showWarnings = !showWarnings; document.getElementById('toggleWarningBtn').classList.toggle('bg-rose-500', showWarnings); renderRoster(); }
+        
         function openEditModal(i) { editingEmpIndex = i; const emp = EMPLOYEES[i]; document.getElementById('editEmpNameInput').value = emp.name; document.getElementById('editEmpRoleInput').value = emp.role; document.getElementById('editEmpOverlay').style.display = 'flex'; }
         function closeEditModal() { document.getElementById('editEmpOverlay').style.display = 'none'; }
-        function applyEditEmployee() { if(editingEmpIndex !== null) { EMPLOYEES[editingEmpIndex].name = document.getElementById('editEmpNameInput').value; EMPLOYEES[editingEmpIndex].role = document.getElementById('editEmpRoleInput').value; renderRoster(); closeEditModal(); } }
-        function confirmDeleteEmployee() { if(editingEmpIndex !== null && confirm('Soll dieser Kollege wirklich entfernt werden?')) { EMPLOYEES.splice(editingEmpIndex, 1); renderRoster(); closeEditModal(); } }
-
+        function applyEditEmployee() { if(editingEmpIndex !== null) { EMPLOYEES[editingEmpIndex].name = document.getElementById('editEmpNameInput').value; EMPLOYEES[editingEmpIndex].role = document.getElementById('editEmpRoleInput').value; renderRoster(); closeEditModal(); saveData(); } }
+        function confirmDeleteEmployee() { if(editingEmpIndex !== null && confirm('Soll dieser Kollege wirklich entfernt werden?')) { EMPLOYEES.splice(editingEmpIndex, 1); renderRoster(); closeEditModal(); saveData(); } }
+        
         function openAddEmpOverlay() { document.getElementById('addEmpOverlay').style.display = 'flex'; }
         function closeAddEmpOverlay() { document.getElementById('addEmpOverlay').style.display = 'none'; }
         function addNewEmployee() {
             const n = document.getElementById('newEmpName').value; const r = document.getElementById('newEmpRole').value; const s = document.getElementById('newEmpStatus').value + '%';
             if(!n) return; EMPLOYEES.push({ id: Date.now().toString(), name: n, role: r || "Pflegekraft", status: s, prevOvertime: 0 });
-            renderRoster(); closeAddEmpOverlay();
+            renderRoster(); closeAddEmpOverlay(); saveData();
         }
 
         function openShiftModal() { renderShiftTypeList(); document.getElementById('shiftModalOverlay').style.display = 'flex'; }
-        function closeShiftModal() { document.getElementById('shiftModalOverlay').style.display = 'none'; renderRoster(); }
+        function closeShiftModal() { document.getElementById('shiftModalOverlay').style.display = 'none'; renderRoster(); saveData(); }
         function renderShiftTypeList() {
             const c = document.getElementById('shiftTypeListContainer'); c.innerHTML = '';
             Object.entries(SHIFT_TYPES).forEach(([k, v]) => {
@@ -537,44 +621,33 @@
         }
         function addShiftType() {
             const k = document.getElementById('newShiftKey').value.toUpperCase().trim(); const l = document.getElementById('newShiftLabel').value; const h = parseFloat(document.getElementById('newShiftHours').value);
-            if(!k || SHIFT_TYPES[k]) return; SHIFT_TYPES[k] = { label: l||k, hours: h||0, color: 'bg-blue-500', textColor: 'text-white' }; renderShiftTypeList();
+            if(!k || SHIFT_TYPES[k]) return;
+            SHIFT_TYPES[k] = { label: l||k, hours: h||0, color: 'bg-blue-500', textColor: 'text-white' }; 
+            renderShiftTypeList();
+            document.getElementById('newShiftKey').value = '';
+            document.getElementById('newShiftLabel').value = '';
+            document.getElementById('newShiftHours').value = '';
         }
 
         function openSliderModal(i, f) { 
-            editingEmpIndex = i; 
-            editingField = f; 
-            const emp = EMPLOYEES[i]; 
+            editingEmpIndex = i; editingField = f; const emp = EMPLOYEES[i]; 
             document.getElementById('modalEmpName').innerText = emp.name;
             const s = document.getElementById('statusSlider');
-            
-            if(f === 'prevOvertime') {
-                document.getElementById('modalTitle').innerText = 'Überstunden Vormonat';
-                s.min = "-100"; s.max = "200"; s.step = "1"; s.value = emp.prevOvertime;
-            } else {
-                document.getElementById('modalTitle').innerText = 'Beschäftigungsgrad';
-                s.min = "0"; s.max = "200"; s.step = "1"; s.value = parseInt(emp.status);
-            }
-            updateSliderLabel();
-            document.getElementById('modalOverlay').style.display = 'flex';
+            if(f === 'prevOvertime') { document.getElementById('modalTitle').innerText = 'Überstunden Vmt'; s.min = "-100"; s.max = "200"; s.value = emp.prevOvertime; }
+            else { document.getElementById('modalTitle').innerText = 'Beschäftigung'; s.min = "0"; s.max = "200"; s.value = parseInt(emp.status); }
+            updateSliderLabel(); document.getElementById('modalOverlay').style.display = 'flex';
         }
-
-        function updateSliderLabel() {
-            const val = document.getElementById('statusSlider').value;
-            const suffix = editingField === 'prevOvertime' ? 'h' : '%';
-            document.getElementById('sliderValueText').innerText = val + suffix;
-        }
-
+        function updateSliderLabel() { const val = document.getElementById('statusSlider').value; document.getElementById('sliderValueText').innerText = val + (editingField==='prevOvertime'?'h':'%'); }
         function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
         function applySliderValue() { 
             const v = document.getElementById('statusSlider').value;
             if(editingField === 'prevOvertime') EMPLOYEES[editingEmpIndex].prevOvertime = parseFloat(v);
             else EMPLOYEES[editingEmpIndex].status = v + '%';
-            renderRoster(); closeModal(); 
+            renderRoster(); closeModal(); saveData();
         }
-
         function openColumnModal() {
             const colList = document.getElementById('columnToggleList'); colList.innerHTML = '';
-            const colLabels = { status: 'Vz/Tz Anteil', soll: 'Soll', ist: 'Ist', diff: '+/- Monat', prev: 'Vormonat', total: 'Gesamt Ü.' };
+            const colLabels = { status: 'Anteil', soll: 'Soll', ist: 'Ist', diff: '+/-', prev: 'Vormt', total: 'Gesamt' };
             Object.keys(viewSettings).forEach(key => {
                 const div = document.createElement('div'); div.className = "flex items-center justify-between p-2 bg-black/5 rounded-xl";
                 div.innerHTML = `<span class="text-[11px] font-bold text-current">${colLabels[key]}</span><button onclick="toggleColumn('${key}')" class="w-10 h-5 rounded-full relative transition-all ${viewSettings[key] ? 'bg-blue-600' : 'bg-slate-300'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${viewSettings[key] ? 'right-1' : 'left-1'}"></div></button>`;
@@ -585,64 +658,36 @@
                 if(key === 'X') return;
                 const btn = document.createElement('button');
                 btn.onclick = () => toggleShiftCounter(key);
-                btn.className = `px-3 py-1.5 rounded-xl text-[9px] font-black border transition-all ${shiftCounterSettings[key] ? 'bg-blue-600 text-white border-blue-500 shadow-md' : 'bg-black/5 border-white/5 text-slate-500'}`;
-                btn.innerText = `${key}: ${SHIFT_TYPES[key].label}`;
+                btn.className = `px-3 py-1.5 rounded-xl text-[9px] font-black border transition-all ${shiftCounterSettings[key] ? 'bg-blue-600 text-white border-blue-500' : 'bg-black/5 border-white/5 text-slate-500'}`;
+                btn.innerText = key;
                 shiftList.appendChild(btn);
             });
             document.getElementById('columnOverlay').style.display = 'flex';
         }
-
         function toggleShiftCounter(key) { shiftCounterSettings[key] = !shiftCounterSettings[key]; localStorage.setItem('shift_counter_settings', JSON.stringify(shiftCounterSettings)); openColumnModal(); renderRoster(); }
         function toggleColumn(key) { viewSettings[key] = !viewSettings[key]; localStorage.setItem('view_settings', JSON.stringify(viewSettings)); openColumnModal(); renderRoster(); }
         function closeColumnModal() { document.getElementById('columnOverlay').style.display = 'none'; }
-
-        function toggleShift(id, k) { if (!roster[id]) roster[id] = {}; roster[id][k] = (roster[id][k] === activeShift) ? null : activeShift; renderRoster(); }
-        function changeMonth(o) { currentDate.setMonth(currentDate.getMonth() + o); renderRoster(); }
-        function toggleTheme() { let mode = document.body.classList.toggle('light-mode'); localStorage.setItem('theme', mode ? 'light' : 'dark'); renderRoster(); }
-        function toggleWarnings() { showWarnings = !showWarnings; document.getElementById('toggleWarningBtn').classList.toggle('bg-rose-500', showWarnings); renderRoster(); }
         function openYearModal() { document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); document.getElementById('yearViewOverlay').style.display = 'flex'; }
         function closeYearModal() { document.getElementById('yearViewOverlay').style.display = 'none'; }
-        function renderMonthGrid() { const container = document.getElementById('monthGrid'); container.innerHTML = ''; const months = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"]; months.forEach((m, i) => { const btn = document.createElement('button'); const isCurrent = currentDate.getMonth() === i; btn.className = `p-3 md:p-4 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase transition-all border ${isCurrent ? 'bg-blue-600 text-white border-blue-500' : 'bg-black/5 border-white/5 text-current'}`; btn.innerText = m; btn.onclick = () => { currentDate.setMonth(i); renderRoster(); closeYearModal(); }; container.appendChild(btn); }); }
+        function renderMonthGrid() { const container = document.getElementById('monthGrid'); container.innerHTML = ''; const months = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]; months.forEach((m, i) => { const btn = document.createElement('button'); const isCurrent = currentDate.getMonth() === i; btn.className = `p-3 rounded-xl text-[9px] font-black uppercase transition-all border ${isCurrent ? 'bg-blue-600 text-white' : 'bg-black/5 text-current'}`; btn.innerText = m; btn.onclick = () => { currentDate.setMonth(i); renderRoster(); closeYearModal(); }; container.appendChild(btn); }); }
         function changeYear(o) { currentDate.setFullYear(currentDate.getFullYear() + o); document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); }
         
-        async function saveData() {
-            localStorage.setItem('helios_employees', JSON.stringify(EMPLOYEES));
-            localStorage.setItem('helios_shifts', JSON.stringify(SHIFT_TYPES));
-            localStorage.setItem('helios_roster', JSON.stringify(roster));
-            if (!db || !auth || !auth.currentUser) return;
-            try {
-                await db.doc(CONFIG_DOC_PATH).set({ employees: EMPLOYEES, shifts: SHIFT_TYPES, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
-                await db.doc(DATA_DOC_PATH).set({ roster: roster, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
-            } catch (err) {}
-        }
-
-        async function init() {
-            if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
-            renderRoster();
-            if (firebaseConfig && typeof firebase !== 'undefined') {
-                try {
-                    firebase.initializeApp(firebaseConfig);
-                    auth = firebase.auth(); db = firebase.firestore();
-                    await auth.signInAnonymously();
-                    const rosterDoc = await db.doc(DATA_DOC_PATH).get();
-                    if (rosterDoc.exists) roster = rosterDoc.data().roster || {};
-                    renderRoster(); 
-                } catch (err) {}
-            }
-        }
         function renderShiftPalette() { 
-            const c = document.getElementById('shiftPalette'); 
-            c.innerHTML = ''; 
+            const c = document.getElementById('shiftPalette'); c.innerHTML = ''; 
             Object.entries(SHIFT_TYPES).forEach(([k, v]) => { 
                 const b = document.createElement('button'); 
-                b.className = `flex shrink-0 items-center gap-2 p-2 rounded-xl border transition-all ${activeShift===k?'bg-blue-500/20 border-blue-500':'bg-black/5 border-white/5'}`; 
+                b.className = `flex shrink-0 items-center gap-2 p-1 md:p-2 rounded-xl border transition-all ${activeShift===k?'bg-blue-500/20 border-blue-500':'bg-black/5 border-white/5'}`; 
                 b.onclick = () => { activeShift = k; renderShiftPalette(); }; 
                 b.innerHTML = `<div class="w-8 h-8 rounded-lg ${v.color} flex items-center justify-center font-black ${v.textColor} shadow-md">${k}</div><span class="text-[9px] font-bold uppercase hidden lg:block text-current">${v.label}</span>`; 
                 c.appendChild(b); 
             }); 
         }
 
-        window.onload = init;
+        window.onload = async () => {
+            if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
+            renderRoster();
+            await initFirebase();
+        };
     </script>
 </body>
 </html>
