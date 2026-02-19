@@ -321,7 +321,7 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'notaufnahme-duisburg';
         
         // Globale Daten
-        let viewSettings = JSON.parse(localStorage.getItem('view_settings')) || { status: true, soll: true, ist: true, diff: true, prev: true, total: true };
+        let viewSettings = JSON.parse(localStorage.getItem('view_settings')) || { status: true, soll: true, ist: true, days: true, diff: true, prev: true, total: true };
         let shiftCounterSettings = JSON.parse(localStorage.getItem('shift_counter_settings')) || { FD: true, SD: true, ND: true, LT: false, U: false, K: false, FE: false };
         
         // Vollständige Liste der Kollegen
@@ -502,6 +502,7 @@
                 <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-current ${hidden('status')}">VZ</th>
                 <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-current ${hidden('soll')}">Soll</th>
                 <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-current ${hidden('ist')}">Ist</th>
+                <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-emerald-500 ${hidden('days')}">AT</th>
                 <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-current ${hidden('diff')}">+/-</th>
                 <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-blue-500 ${hidden('prev')}">Vmt</th>
                 <th class="p-1 text-center text-[10px] font-black border-b border-black/10 text-orange-500 ${hidden('total')}">Ges</th>`;
@@ -526,14 +527,19 @@
             EMPLOYEES.forEach((emp, idx) => {
                 const tr = document.createElement('tr');
                 tr.className = 'group row-separator hover:bg-[var(--row-hover)] text-current';
-                let actual = 0; const empRoster = roster[emp.id] || {};
+                let actualHours = 0; 
+                let actualWorkingDays = 0;
+                const empRoster = roster[emp.id] || {};
                 const empTarget = monthTargetHours * ((parseFloat(emp.status) || 100) / 100);
                 
                 let daysHTML = "";
                 days.forEach(day => {
                     const key = day.toISOString().split('T')[0];
                     const s = empRoster[key];
-                    if (s && SHIFT_TYPES[s]) actual += SHIFT_TYPES[s].hours;
+                    if (s && SHIFT_TYPES[s]) {
+                        actualHours += SHIFT_TYPES[s].hours;
+                        if (SHIFT_TYPES[s].hours > 0) actualWorkingDays++;
+                    }
                     const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                     const isWarn = showWarnings && (dailyCounts[key].FD < 2 || dailyCounts[key].SD < 2 || dailyCounts[key].ND < 2);
                     
@@ -542,7 +548,7 @@
                     </td>`;
                 });
 
-                const diff = actual - empTarget;
+                const diff = actualHours - empTarget;
                 const totalÜ = diff + (parseFloat(emp.prevOvertime) || 0);
 
                 tr.innerHTML = `<td class="p-3 sticky-left name-col-bg border-r border-black/5 shadow-xl">
@@ -551,7 +557,8 @@
                 </td>
                 <td class="p-1 text-center text-[9px] font-bold text-slate-400 ${hidden('status')}" onclick="openSliderModal(${idx}, 'status')">${emp.status}</td>
                 <td class="p-1 text-center text-[9px] font-mono text-slate-400 ${hidden('soll')}">${empTarget.toFixed(0)}</td>
-                <td class="p-1 text-center text-[9px] font-black font-mono ${hidden('ist')}">${actual.toFixed(0)}</td>
+                <td class="p-1 text-center text-[9px] font-black font-mono ${hidden('ist')}">${actualHours.toFixed(0)}</td>
+                <td class="p-1 text-center text-[9px] font-black font-mono text-emerald-500 ${hidden('days')}">${actualWorkingDays}</td>
                 <td class="p-1 text-center text-[9px] font-black font-mono ${diff >= 0 ? 'text-emerald-500' : 'text-rose-500'} ${hidden('diff')}">${diff.toFixed(0)}</td>
                 <td class="p-1 text-center text-[9px] font-black font-mono text-blue-500 ${hidden('prev')}" onclick="openSliderModal(${idx}, 'prevOvertime')">${emp.prevOvertime.toFixed(0)}</td>
                 <td class="p-1 text-center text-[9px] font-black font-mono ${totalÜ >= 0 ? 'text-orange-500' : 'text-rose-600'} ${hidden('total')}">${totalÜ.toFixed(0)}</td>
@@ -576,7 +583,7 @@
                         <div class="w-4 h-4 rounded ${sInfo.color} flex items-center justify-center text-[8px] ${sInfo.textColor}">${sCode}</div>
                         <span class="text-[8px] uppercase tracking-tighter opacity-70 truncate">${sInfo.label}</span>
                     </td>
-                    <td colspan="6" class="p-2 border-r border-black/5 text-right opacity-50 ${hidden('status') && hidden('soll') && hidden('ist') && hidden('diff') && hidden('prev') && hidden('total') ? 'hidden' : ''}">Summe:</td>`;
+                    <td colspan="7" class="p-2 border-r border-black/5 text-right opacity-50 ${hidden('status') && hidden('soll') && hidden('ist') && hidden('days') && hidden('diff') && hidden('prev') && hidden('total') ? 'hidden' : ''}">Summe:</td>`;
                 
                 days.forEach(day => {
                     const key = day.toISOString().split('T')[0];
@@ -647,7 +654,7 @@
         }
         function openColumnModal() {
             const colList = document.getElementById('columnToggleList'); colList.innerHTML = '';
-            const colLabels = { status: 'Anteil', soll: 'Soll', ist: 'Ist', diff: '+/-', prev: 'Vormt', total: 'Gesamt' };
+            const colLabels = { status: 'Anteil', soll: 'Soll', ist: 'Ist', days: 'Arbeitstage', diff: '+/-', prev: 'Vormt', total: 'Gesamt' };
             Object.keys(viewSettings).forEach(key => {
                 const div = document.createElement('div'); div.className = "flex items-center justify-between p-2 bg-black/5 rounded-xl";
                 div.innerHTML = `<span class="text-[11px] font-bold text-current">${colLabels[key]}</span><button onclick="toggleColumn('${key}')" class="w-10 h-5 rounded-full relative transition-all ${viewSettings[key] ? 'bg-blue-600' : 'bg-slate-300'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${viewSettings[key] ? 'right-1' : 'left-1'}"></div></button>`;
