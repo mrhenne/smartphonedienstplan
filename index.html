@@ -132,7 +132,7 @@
         @media print {
             @page {
                 size: A3 landscape;
-                margin: 5mm;
+                margin: 10mm;
             }
             body {
                 background: white !important;
@@ -157,32 +157,44 @@
                 max-height: none !important;
             }
             #rosterTable {
-                zoom: 0.8 !important; /* Etwas verkleinern für A3/A4 */
+                zoom: 1 !important; 
                 transform: none !important;
                 width: 100% !important;
                 border-collapse: collapse !important;
+                border: 1px solid black !important;
+            }
+            /* Tabellenkopf auf jeder Seite wiederholen */
+            thead {
+                display: table-header-group !important;
+            }
+            tfoot {
+                display: table-footer-group !important;
+            }
+            tr {
+                page-break-inside: avoid !important;
             }
             .name-col-bg {
                 background: white !important;
                 box-shadow: none !important;
-                border-right: 1px solid #ddd !important;
+                border-right: 1px solid #000 !important;
             }
             th, td {
-                border: 0.5pt solid #ccc !important;
+                border: 0.5pt solid #000 !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+                color: black !important;
             }
-            .holiday-cell { background-color: #fef3c7 !important; }
-            .weekend-cell { background-color: #f1f5f9 !important; }
+            .holiday-cell { background-color: #fef3c7 !important; border: 0.5pt solid #000 !important; }
+            .weekend-cell { background-color: #f1f5f9 !important; border: 0.5pt solid #000 !important; }
             .sticky-left, .sticky {
                 position: static !important;
             }
-            /* Header Simulation für den Druck */
             header {
                 display: block !important;
                 border-bottom: 2px solid black !important;
                 margin-bottom: 10px !important;
             }
+            .warning-cell { background-color: transparent !important; box-shadow: none !important; }
         }
 
         @keyframes spin {
@@ -282,22 +294,6 @@
         </div>
     </div>
 
-    <div id="noteModalOverlay">
-        <div class="glass p-8 rounded-3xl w-full md:w-96 shadow-2xl flex flex-col gap-6" onclick="event.stopPropagation()">
-            <h3 class="text-lg font-black text-center text-current flex items-center justify-center gap-2">
-                <i data-lucide="sticky-note" class="text-yellow-500"></i> Notiz / Wunsch
-            </h3>
-            <div class="flex flex-col gap-1">
-                <p id="noteContext" class="text-[10px] text-slate-500 uppercase font-bold text-center"></p>
-                <textarea id="noteInput" rows="4" placeholder="Notiz hier eintragen..." class="bg-black/5 border border-white/10 rounded-2xl p-4 text-sm text-current focus:outline-none focus:ring-2 focus:ring-yellow-500/50 resize-none"></textarea>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="closeNoteModal()" class="flex-1 py-3 rounded-xl bg-black/5 text-current transition-all">Abbrechen</button>
-                <button onclick="saveNote()" class="flex-1 py-3 rounded-xl bg-yellow-600 text-white font-bold shadow-lg transition-all">Speichern</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Main Header -->
     <div class="flex flex-col h-full w-full relative z-10 overflow-hidden">
         <header class="glass m-2 md:m-4 p-3 rounded-2xl shadow-2xl no-print flex items-center justify-between gap-4">
@@ -312,6 +308,16 @@
             </div>
 
             <div class="flex items-center gap-2 bg-black/5 p-1 rounded-2xl border border-white/5 ml-auto overflow-x-auto no-scrollbar">
+                
+                <div class="flex items-center bg-black/20 rounded-xl p-0.5 border border-white/5 shrink-0 mr-1">
+                    <button id="viewMonthBtn" onclick="toggleViewMode('month')" class="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-2">
+                        <i data-lucide="calendar-days" size="12"></i> Monat
+                    </button>
+                    <button id="viewWeekBtn" onclick="toggleViewMode('week')" class="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-2">
+                        <i data-lucide="calendar-range" size="12"></i> Woche
+                    </button>
+                </div>
+
                 <div class="hidden lg:flex items-center gap-2 px-3 py-1 bg-black/20 rounded-xl border border-white/5 shrink-0">
                     <button onclick="adjustZoom(-0.05)" class="text-slate-500 hover:text-white transition-colors"><i data-lucide="minus-circle" size="14"></i></button>
                     <input type="range" id="zoomSlider" min="0.5" max="1.5" step="0.05" value="1" oninput="adjustZoom(0)" class="w-16 h-1 appearance-none bg-white/10 rounded-full zoom-slider cursor-pointer accent-blue-500">
@@ -320,9 +326,9 @@
                 </div>
 
                 <div class="flex items-center bg-black/20 rounded-xl p-0.5 border border-white/5 shrink-0">
-                    <button onclick="changeMonth(-1)" class="p-1.5 hover:bg-white/10 rounded-lg text-current transition-colors"><i data-lucide="chevron-left" size="14"></i></button>
+                    <button onclick="handleNavigation(-1)" class="p-1.5 hover:bg-white/10 rounded-lg text-current transition-colors"><i data-lucide="chevron-left" size="14"></i></button>
                     <div id="monthLabel" onclick="openYearModal()" class="px-3 font-black text-[11px] uppercase cursor-pointer hover:text-blue-400 min-w-[110px] text-center text-current transition-all">Monat</div>
-                    <button onclick="changeMonth(1)" class="p-1.5 hover:bg-white/10 rounded-lg text-current transition-colors"><i data-lucide="chevron-right" size="14"></i></button>
+                    <button onclick="handleNavigation(1)" class="p-1.5 hover:bg-white/10 rounded-lg text-current transition-colors"><i data-lucide="chevron-right" size="14"></i></button>
                 </div>
                 
                 <div id="headerWorkingDays" class="px-3 py-2 bg-blue-500/10 text-blue-400 text-[10px] font-black rounded-xl border border-blue-500/20 hidden md:block shrink-0">
@@ -335,7 +341,6 @@
                     <button id="toggleWarningBtn" onclick="toggleWarnings()" class="p-2 hover:bg-rose-500/20 rounded-xl text-rose-500 transition-all" title="Warnungen"><i data-lucide="alert-triangle" size="16"></i></button>
                     <button id="themeToggle" onclick="toggleTheme()" class="p-2 hover:bg-white/10 rounded-xl text-slate-400 transition-all"><i data-lucide="moon" id="themeIcon" size="16"></i></button>
                     
-                    <!-- NEU: EXPORT BUTTON -->
                     <button onclick="exportToPDF()" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-[11px] font-black shadow-lg flex items-center gap-2 transition-all active:scale-95">
                         <i data-lucide="file-down" size="14"></i>
                         <span class="hidden lg:inline">Exportieren</span>
@@ -349,7 +354,7 @@
             </div>
         </header>
 
-        <!-- Druck-Vorschau Header (nur beim Druck sichtbar) -->
+        <!-- Druck-Vorschau Header -->
         <div class="hidden print:block mb-4 border-b-2 border-slate-900 pb-2">
             <div class="flex justify-between items-end">
                 <div>
@@ -358,7 +363,6 @@
                 </div>
                 <div class="text-right text-xs">
                     <p>Erstellt am: <span id="printCurrentDate"></span></p>
-                    <p>Status: Entwurf / Freigegeben</p>
                 </div>
             </div>
         </div>
@@ -449,12 +453,28 @@
             K:  { label: 'Krank', color: 'bg-rose-500/90', textColor: 'text-white', hours: 7.7 }
         };
 
-        let EMPLOYEES = JSON.parse(localStorage.getItem('helios_employees')) || [
+        const INITIAL_EMPLOYEES = [
             { id: '1', name: 'Adams, Hendrik', role: 'Stationsleitung', status: '100%', prevOvertime: 0 },
             { id: '2', name: 'Fuchsa, Jennifer', role: 'stellv. Leitung', status: '100%', prevOvertime: 0 },
-            { id: '3', name: 'Günter, Stephanie', role: 'Pflegekraft', status: '100%', prevOvertime: 0 }
+            { id: '3', name: 'Günter, Stephanie', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '4', name: 'Blank, Alexandra', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '5', name: 'Friedrich, Kristina', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '6', name: 'Weienberg, Hanna', role: 'Fachkraft', status: '100%', prevOvertime: 0 },
+            { id: '7', name: 'Hackmann, Matthias', role: 'Pflegekraft', status: '90%', prevOvertime: 0 },
+            { id: '8', name: 'Buchmüller, Jörg', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '9', name: 'Rösken, Katrin', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '10', name: 'Theißen, Jennifer', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '11', name: 'Daniels, Justin', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '12', name: 'Kaymaz, Melda', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '13', name: 'Kühn, Philipp', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '14', name: 'Strachanski, Julia', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '15', name: 'Preußner, Pauline', role: 'Auszubildende', status: '100%', prevOvertime: 0 },
+            { id: '16', name: 'Bielok, Lara', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '17', name: 'Wüstkamp, Bianca', role: 'Pflegekraft', status: '100%', prevOvertime: 0 },
+            { id: '18', name: 'Bondzau, Martina', role: 'Pflegekraft', status: '100%', prevOvertime: 0 }
         ];
-        
+
+        let EMPLOYEES = JSON.parse(localStorage.getItem('helios_employees')) || INITIAL_EMPLOYEES;
         let roster = JSON.parse(localStorage.getItem('helios_roster')) || {};
         let rosterNotes = JSON.parse(localStorage.getItem('helios_roster_notes')) || {};
         
@@ -465,6 +485,8 @@
         let draggingIndex = null;
         let editingField = 'status';
         let noteTarget = null;
+        let viewMode = 'month'; 
+        let weekStartIndex = 0; 
 
         // --- Firebase Integration ---
         async function initFirebase() {
@@ -472,22 +494,15 @@
             const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, getFirestore, onAuthStateChanged } = window.firebaseCore;
             const configStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
             if (!configStr) return;
-
             try {
                 const app = initializeApp(JSON.parse(configStr));
-                auth = getAuth(app);
-                db = getFirestore(app);
-                
+                auth = getAuth(app); db = getFirestore(app);
                 const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
                 if (token) await signInWithCustomToken(auth, token);
                 else await signInAnonymously(auth);
-
                 onAuthStateChanged(auth, (u) => {
                     user = u;
-                    if (user) {
-                        document.getElementById('syncLabel').innerText = `Sync: Aktiv`;
-                        loadCloudData();
-                    }
+                    if (user) { document.getElementById('syncLabel').innerText = `Sync: Aktiv`; loadCloudData(); }
                 });
             } catch (e) { console.error("Firebase Fehler:", e); }
         }
@@ -504,9 +519,7 @@
                     if (data.roster) roster = data.roster;
                     if (data.rosterNotes) rosterNotes = data.rosterNotes;
                     if (data.shifts) SHIFT_TYPES = data.shifts;
-                    
                     renderRoster();
-                    showToast("Cloud-Daten geladen", "cloud");
                 }
             } catch (e) { console.error("Cloud-Laden Fehler:", e); }
         }
@@ -516,149 +529,100 @@
             localStorage.setItem('helios_roster', JSON.stringify(roster));
             localStorage.setItem('helios_roster_notes', JSON.stringify(rosterNotes));
             localStorage.setItem('helios_shifts', JSON.stringify(SHIFT_TYPES));
-            
             const saveIcon = document.getElementById('saveIcon');
             saveIcon.classList.add('animate-spin-fast');
-
             if (user && db) {
                 const { doc, setDoc, serverTimestamp } = window.firebaseCore;
                 const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'rosterPlan', 'main');
                 try {
-                    await setDoc(docRef, { 
-                        employees: EMPLOYEES, 
-                        roster: roster, 
-                        rosterNotes: rosterNotes, 
-                        shifts: SHIFT_TYPES, 
-                        updatedAt: serverTimestamp() 
-                    }, { merge: true });
+                    await setDoc(docRef, { employees: EMPLOYEES, roster: roster, rosterNotes: rosterNotes, shifts: SHIFT_TYPES, updatedAt: serverTimestamp() }, { merge: true });
                     showToast("Cloud-Sync erfolgreich", "cloud-check");
                 } catch (e) { showToast("Sync fehlgeschlagen", "alert-triangle"); }
             } else { showToast("Lokal gesichert", "save"); }
             setTimeout(() => saveIcon.classList.remove('animate-spin-fast'), 800);
         }
 
-        // --- Export & Print ---
+        // --- Export & View Control ---
+        function toggleViewMode(mode) {
+            viewMode = mode; weekStartIndex = 0;
+            updateViewButtons(); renderRoster();
+        }
+
+        function updateViewButtons() {
+            const mBtn = document.getElementById('viewMonthBtn');
+            const wBtn = document.getElementById('viewWeekBtn');
+            if(viewMode === 'month') {
+                mBtn.className = "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-2 bg-blue-600 text-white shadow-lg";
+                wBtn.className = "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-2 text-slate-500 hover:text-white";
+            } else {
+                wBtn.className = "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-2 bg-blue-600 text-white shadow-lg";
+                mBtn.className = "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all flex items-center gap-2 text-slate-500 hover:text-white";
+            }
+        }
+
+        function handleNavigation(direction) {
+            if(viewMode === 'month') { changeMonth(direction); } else { changeWeek(direction); }
+        }
+
+        function changeWeek(direction) {
+            const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+            let nextIndex = weekStartIndex + (direction * 7);
+            if(nextIndex < 0) { changeMonth(-1); weekStartIndex = 0; } 
+            else if(nextIndex >= lastDay) { changeMonth(1); weekStartIndex = 0; } 
+            else { weekStartIndex = nextIndex; renderRoster(); }
+        }
+
         function exportToPDF() {
-            // Aktuellen Monat für den Druck setzen
+            const oldMode = viewMode;
+            const oldWeekIndex = weekStartIndex;
+            
+            // Für den Export IMMER Monatsansicht erzwingen
+            viewMode = 'month';
+            renderRoster();
+
             document.getElementById('printMonthLabel').innerText = currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' });
             document.getElementById('printCurrentDate').innerText = new Date().toLocaleDateString('de-DE');
             
-            // Druckdialog öffnen
-            window.print();
+            // Kurz warten für Rendering, dann Drucken
+            setTimeout(() => {
+                window.print();
+                // Zurück zur vorherigen Ansicht
+                viewMode = oldMode;
+                weekStartIndex = oldWeekIndex;
+                renderRoster();
+            }, 500);
         }
 
-        // --- Drag & Drop für Kollegen ---
-        function handleDragStart(e, index) {
-            draggingIndex = index;
-            e.currentTarget.classList.add('dragging');
-        }
+        // --- Drag & Drop ---
+        function handleDragStart(e, index) { draggingIndex = index; e.currentTarget.classList.add('dragging'); }
         function handleDragOver(e) { e.preventDefault(); }
         function handleDrop(e, index) {
             e.preventDefault();
             if (draggingIndex === null || draggingIndex === index) return;
             const movedItem = EMPLOYEES.splice(draggingIndex, 1)[0];
             EMPLOYEES.splice(index, 0, movedItem);
-            draggingIndex = null;
-            renderRoster();
-            saveData();
+            draggingIndex = null; renderRoster(); saveData();
         }
         function handleDragEnd(e) { e.currentTarget.classList.remove('dragging'); }
 
-        // --- Schicht-Editor Logik ---
-        function openShiftModal() {
-            renderShiftTypeList();
-            document.getElementById('shiftModalOverlay').style.display = 'flex';
-        }
-        function closeShiftModal() {
-            document.getElementById('shiftModalOverlay').style.display = 'none';
-            renderRoster();
-            saveData();
-        }
-        function renderShiftTypeList() {
-            const container = document.getElementById('shiftTypeListContainer');
-            if(!container) return;
-            container.innerHTML = '';
-            
-            Object.entries(SHIFT_TYPES).forEach(([k, v]) => {
-                const div = document.createElement('div');
-                div.className = "flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/5 shadow-sm";
-                div.innerHTML = `
-                    <div class="w-10 h-10 rounded-lg ${v.color} flex items-center justify-center font-black ${v.textColor} shadow-md">${k}</div>
-                    <div class="flex-1">
-                        <input type="text" value="${v.label}" onchange="SHIFT_TYPES['${k}'].label=this.value" class="w-full bg-black/10 text-[11px] font-bold text-current px-2 py-1 rounded outline-none focus:ring-1 focus:ring-blue-500">
-                        <p class="text-[9px] text-slate-500 uppercase font-black mt-1">Bezeichnung</p>
-                    </div>
-                    <div class="w-20">
-                        <input type="number" step="0.1" value="${v.hours}" onchange="SHIFT_TYPES['${k}'].hours=parseFloat(this.value)" class="w-full bg-black/10 text-[11px] font-bold text-current px-2 py-1 rounded text-center outline-none focus:ring-1 focus:ring-blue-500">
-                        <p class="text-[9px] text-slate-500 uppercase font-black mt-1 text-center">Stunden</p>
-                    </div>
-                    <button onclick="deleteShiftType('${k}')" class="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all ${['X', 'U', 'K'].includes(k) ? 'opacity-0 pointer-events-none' : ''}">
-                        <i data-lucide="trash-2" size="16"></i>
-                    </button>
-                `;
-                container.appendChild(div);
-            });
-            lucide.createIcons();
-        }
-        function addShiftType() {
-            const k = document.getElementById('newShiftKey').value.toUpperCase().trim();
-            const l = document.getElementById('newShiftLabel').value;
-            const h = parseFloat(document.getElementById('newShiftHours').value);
-            
-            if(!k) { showToast("Kürzel fehlt", "alert-circle"); return; }
-            if(SHIFT_TYPES[k]) { showToast("Kürzel existiert bereits", "alert-circle"); return; }
-            
-            SHIFT_TYPES[k] = { 
-                label: l || k, 
-                hours: h || 0, 
-                color: 'bg-blue-600', 
-                textColor: 'text-white' 
-            };
-            
-            shiftCounterSettings[k] = true;
-            renderShiftTypeList();
-            document.getElementById('newShiftKey').value = '';
-            document.getElementById('newShiftLabel').value = '';
-            document.getElementById('newShiftHours').value = '';
-        }
-        function deleteShiftType(k) {
-            if(confirm(`Dienst "${k}" wirklich löschen?`)) {
-                delete SHIFT_TYPES[k];
-                renderShiftTypeList();
-            }
-        }
-
-        // --- Helfer ---
-        function getHolidaysNRW(year) {
-            const f = Math.floor, G = year % 19, C = f(year / 100), H = (C - f(C / 4) - f((8 * C + 13) / 25) + 19 * G + 15) % 30, I = H - f(H / 28) * (1 - f(29 / (H + 1)) * f((21 - G) / 11)), J = (year + f(year / 4) + I + 2 - C + f(C / 4)) % 7, L = I - J, month = 3 + f((L + 40) / 44), day = L + 28 - 31 * f(month / 4);
-            const easter = new Date(year, month - 1, day);
-            const add = (d, n) => { const r = new Date(d); r.setDate(r.getDate()+n); return r.toISOString().split('T')[0]; };
-            return { [`${year}-01-01`]:"N", [add(easter,-2)]:"K", [add(easter,1)]:"O", [`${year}-05-01`]:"T", [add(easter,39)]:"C", [add(easter,50)]:"P", [add(easter,60)]:"F", [`${year}-10-03`]:"E", [`${year}-11-01`]:"A", [`${year}-12-25`]:"W1", [`${year}-12-26`]:"W2" };
-        }
-
-        function calculateWorkingDays(year, month) {
-            const h = getHolidaysNRW(year); let count = 0; const d = new Date(year, month, 1);
-            while (d.getMonth() === month) {
-                if (d.getDay() !== 0 && d.getDay() !== 6 && !h[d.toISOString().split('T')[0]]) count++;
-                d.setDate(d.getDate() + 1);
-            }
-            return count;
-        }
-
-        // --- Render ---
+        // --- Core Rendering ---
         function renderRoster() {
             const year = currentDate.getFullYear(), month = currentDate.getMonth();
-            const days = []; const d = new Date(year, month, 1);
-            while (d.getMonth() === month) { days.push(new Date(d)); d.setDate(d.getDate() + 1); }
+            const allDays = []; const d = new Date(year, month, 1);
+            while (d.getMonth() === month) { allDays.push(new Date(d)); d.setDate(d.getDate() + 1); }
+            
+            let visibleDays = viewMode === 'month' ? allDays : allDays.slice(weekStartIndex, weekStartIndex + 7);
+
             const holidays = getHolidaysNRW(year);
             const workDays = calculateWorkingDays(year, month);
             const monthSoll = workDays * 7.7;
             
-            document.getElementById('monthLabel').innerText = currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' });
+            const monthText = currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' });
+            document.getElementById('monthLabel').innerText = viewMode === 'month' ? monthText : `${monthText} | W${Math.floor(weekStartIndex/7)+1}`;
             document.getElementById('headerWorkingDays').innerText = `${workDays} Arbeitstage`;
             
             const dailyCounts = {};
-            days.forEach(day => {
+            allDays.forEach(day => {
                 const k = day.toISOString().split('T')[0];
                 dailyCounts[k] = {}; 
                 Object.keys(SHIFT_TYPES).forEach(s => dailyCounts[k][s] = 0);
@@ -670,7 +634,7 @@
 
             const head = document.getElementById('tableHead');
             const hidden = (k) => viewSettings[k] ? '' : 'hidden-col';
-            let headHTML = `<tr class="sticky top-0 z-40 bg-[var(--table-header-bg)]">
+            let headHTML = `<tr>
                 <th class="p-3 text-left text-[10px] font-black border-b border-black/10 sticky-left name-col-bg uppercase text-current min-w-[140px]">KOLLEGE</th>
                 <th class="p-1 text-center text-[10px] font-black border-b border-black/10 ${hidden('status')}">VZ</th>
                 <th class="p-1 text-center text-[10px] font-black border-b border-black/10 ${hidden('soll')}">Soll</th>
@@ -678,7 +642,7 @@
                 <th class="p-1 text-center text-[10px] font-black border-b border-black/10 ${hidden('diff')}">+/-</th>
                 <th class="p-1 text-center text-[10px] font-black border-b border-black/10 ${hidden('prev')}">Vmt</th>`;
             
-            days.forEach(day => {
+            visibleDays.forEach(day => {
                 const k = day.toISOString().split('T')[0];
                 const isH = !!holidays[k], isW = day.getDay() === 0 || day.getDay() === 6;
                 const isWarn = showWarnings && ((dailyCounts[k].FD || 0) < 2 || (dailyCounts[k].SD || 0) < 2 || (dailyCounts[k].ND || 0) < 2);
@@ -702,14 +666,15 @@
                 tr.ondragend = (e) => handleDragEnd(e);
 
                 let ist = 0; const eRost = roster[emp.id] || {}, eNote = rosterNotes[emp.id] || {};
-                const soll = monthSoll * (parseInt(emp.status) / 100);
-                
-                let dHTML = "";
-                days.forEach(day => {
-                    const k = day.toISOString().split('T')[0]; const s = eRost[k], n = eNote[k];
+                allDays.forEach(day => {
+                    const k = day.toISOString().split('T')[0]; const s = eRost[k];
                     if (s && SHIFT_TYPES[s]) ist += SHIFT_TYPES[s].hours;
+                });
+                const soll = monthSoll * (parseInt(emp.status) / 100);
+                let dHTML = "";
+                visibleDays.forEach(day => {
+                    const k = day.toISOString().split('T')[0]; const s = eRost[k], n = eNote[k];
                     const isWarn = showWarnings && ((dailyCounts[k].FD || 0) < 2 || (dailyCounts[k].SD || 0) < 2 || (dailyCounts[k].ND || 0) < 2);
-
                     dHTML += `<td onclick="handleCellClick('${emp.id}', '${k}', '${emp.name}')" class="p-0.5 border-r border-black/5 relative ${holidays[k] ? 'holiday-cell' : (day.getDay()===0||day.getDay()===6 ? 'weekend-cell' : '')} ${isWarn ? 'warning-cell' : ''}">
                         <div class="h-8 w-full rounded-lg flex flex-col items-center justify-center transition-all ${s ? `${SHIFT_TYPES[s].color} ${SHIFT_TYPES[s].textColor} shadow-md` : 'hover:bg-blue-500/5'}">
                             <span class="text-[10px] font-black">${s || ''}</span>
@@ -717,7 +682,6 @@
                         </div>
                     </td>`;
                 });
-
                 const diff = ist - soll;
                 tr.innerHTML = `<td class="p-3 sticky-left name-col-bg border-r border-black/5 shadow-xl flex items-center gap-2">
                     <i data-lucide="grip-vertical" class="text-slate-500 opacity-30 no-print" size="12"></i>
@@ -734,7 +698,7 @@
                 ${dHTML}`;
                 body.appendChild(tr);
             });
-            renderTableFooter(days, dailyCounts, hidden); renderShiftPalette(); lucide.createIcons();
+            renderTableFooter(visibleDays, dailyCounts, hidden); renderShiftPalette(); lucide.createIcons();
         }
 
         function renderTableFooter(days, dailyCounts, hidden) {
@@ -757,44 +721,37 @@
             });
         }
 
-        // --- Interaktionen ---
+        // --- Interaction Modals ---
+        function openShiftModal() { renderShiftTypeList(); document.getElementById('shiftModalOverlay').style.display = 'flex'; }
+        function closeShiftModal() { document.getElementById('shiftModalOverlay').style.display = 'none'; renderRoster(); saveData(); }
+        function renderShiftTypeList() {
+            const container = document.getElementById('shiftTypeListContainer'); if(!container) return; container.innerHTML = '';
+            Object.entries(SHIFT_TYPES).forEach(([k, v]) => {
+                const div = document.createElement('div'); div.className = "flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/5 shadow-sm";
+                div.innerHTML = `<div class="w-10 h-10 rounded-lg ${v.color} flex items-center justify-center font-black ${v.textColor} shadow-md">${k}</div><div class="flex-1"><input type="text" value="${v.label}" onchange="SHIFT_TYPES['${k}'].label=this.value" class="w-full bg-black/10 text-[11px] font-bold text-current px-2 py-1 rounded outline-none"></div><div class="w-20"><input type="number" step="0.1" value="${v.hours}" onchange="SHIFT_TYPES['${k}'].hours=parseFloat(this.value)" class="w-full bg-black/10 text-[11px] font-bold text-current px-2 py-1 rounded text-center outline-none"></div><button onclick="deleteShiftType('${k}')" class="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all ${['X', 'U', 'K'].includes(k) ? 'opacity-0 pointer-events-none' : ''}"><i data-lucide="trash-2" size="16"></i></button>`;
+                container.appendChild(div);
+            }); lucide.createIcons();
+        }
+        function addShiftType() {
+            const k = document.getElementById('newShiftKey').value.toUpperCase().trim(); const l = document.getElementById('newShiftLabel').value; const h = parseFloat(document.getElementById('newShiftHours').value);
+            if(!k || SHIFT_TYPES[k]) return; SHIFT_TYPES[k] = { label: l || k, hours: h || 0, color: 'bg-blue-600', textColor: 'text-white' };
+            shiftCounterSettings[k] = true; renderShiftTypeList();
+            document.getElementById('newShiftKey').value = ''; document.getElementById('newShiftLabel').value = ''; document.getElementById('newShiftHours').value = '';
+        }
+        function deleteShiftType(k) { if(confirm(`Dienst "${k}" löschen?`)) { delete SHIFT_TYPES[k]; renderShiftTypeList(); } }
+
         function handleCellClick(empId, dateKey, empName) {
             if (activeShift === 'NOTE') openNoteModal(empId, dateKey, empName);
-            else { 
-                if (!roster[empId]) roster[empId] = {}; 
-                roster[empId][dateKey] = (roster[empId][dateKey] === activeShift) ? null : activeShift; 
-                renderRoster(); 
-            }
+            else { if (!roster[empId]) roster[empId] = {}; roster[empId][dateKey] = (roster[empId][dateKey] === activeShift) ? null : activeShift; renderRoster(); }
         }
         function toggleWarnings() { showWarnings = !showWarnings; document.getElementById('toggleWarningBtn').classList.toggle('bg-rose-500/30', showWarnings); renderRoster(); }
-        function openNoteModal(empId, dateKey, empName) {
-            noteTarget = { empId, dateKey }; document.getElementById('noteContext').innerText = `${empName} | ${dateKey}`;
-            document.getElementById('noteInput').value = (rosterNotes[empId] || {})[dateKey] || "";
-            document.getElementById('noteModalOverlay').style.display = 'flex';
-        }
-        function closeNoteModal() { document.getElementById('noteModalOverlay').style.display = 'none'; }
-        function saveNote() {
-            if (!noteTarget) return; if (!rosterNotes[noteTarget.empId]) rosterNotes[noteTarget.empId] = {};
-            const text = document.getElementById('noteInput').value.trim();
-            if (!text) delete rosterNotes[noteTarget.empId][noteTarget.dateKey];
-            else rosterNotes[noteTarget.empId][noteTarget.dateKey] = text;
-            renderRoster(); closeNoteModal(); saveData();
-        }
         function changeMonth(o) { currentDate.setMonth(currentDate.getMonth() + o); renderRoster(); }
         function toggleTheme() { document.body.classList.toggle('light-mode'); localStorage.setItem('theme', document.body.classList.contains('light-mode')?'light':'dark'); }
-        function showToast(m, i) { 
-            const t = document.getElementById('toast'); 
-            document.getElementById('toastMessage').innerText = m; 
-            const iconEl = document.getElementById('toastIcon');
-            iconEl.innerHTML = `<i data-lucide="${i}"></i>`;
-            lucide.createIcons();
-            t.style.display = 'flex'; 
-            setTimeout(()=>t.style.display='none', 3000); 
-        }
         function openEditModal(i) { editingEmpIndex = i; const e = EMPLOYEES[i]; document.getElementById('editEmpNameInput').value = e.name; document.getElementById('editEmpRoleInput').value = e.role; document.getElementById('editEmpOverlay').style.display = 'flex'; }
         function closeEditModal() { document.getElementById('editEmpOverlay').style.display = 'none'; }
         function applyEditEmployee() { EMPLOYEES[editingEmpIndex].name = document.getElementById('editEmpNameInput').value; EMPLOYEES[editingEmpIndex].role = document.getElementById('editEmpRoleInput').value; renderRoster(); closeEditModal(); saveData(); }
         function confirmDeleteEmployee() { if(confirm('Kollege entfernen?')) { EMPLOYEES.splice(editingEmpIndex, 1); renderRoster(); closeEditModal(); saveData(); } }
+        function adjustZoom(delta) { const slider = document.getElementById('zoomSlider'); let val = delta === 0 ? parseFloat(slider.value) : parseFloat(slider.value) + delta; val = Math.max(0.5, Math.min(1.5, val)); slider.value = val; document.documentElement.style.setProperty('--zoom-factor', val); document.getElementById('zoomText').innerText = Math.round(val * 100) + '%'; }
         function openSliderModal(i, f) { editingEmpIndex = i; editingField = f; const s = document.getElementById('statusSlider'); s.value = f==='prevOvertime' ? EMPLOYEES[i].prevOvertime : parseInt(EMPLOYEES[i].status); updateSliderLabel(); document.getElementById('modalOverlay').style.display = 'flex'; }
         function updateSliderLabel() { document.getElementById('sliderValueText').innerText = document.getElementById('statusSlider').value + (editingField==='status'?'%':'h'); }
         function closeModal() { document.getElementById('modalOverlay').style.display = 'none'; }
@@ -802,28 +759,20 @@
         function openAddEmpOverlay() { document.getElementById('addEmpOverlay').style.display = 'flex'; }
         function closeAddEmpOverlay() { document.getElementById('addEmpOverlay').style.display = 'none'; }
         function addNewEmployee() { const n = document.getElementById('newEmpName').value; if(!n) return; EMPLOYEES.push({ id: Date.now().toString(), name: n, role: document.getElementById('newEmpRole').value || 'Pflege', status: document.getElementById('newEmpStatus').value+'%', prevOvertime: 0 }); renderRoster(); closeAddEmpOverlay(); saveData(); }
-        function adjustZoom(delta) { const slider = document.getElementById('zoomSlider'); let val = delta === 0 ? parseFloat(slider.value) : parseFloat(slider.value) + delta; val = Math.max(0.5, Math.min(1.5, val)); slider.value = val; document.documentElement.style.setProperty('--zoom-factor', val); document.getElementById('zoomText').innerText = Math.round(val * 100) + '%'; }
-        
         function openColumnModal() {
-            const colList = document.getElementById('columnToggleList'); 
-            if(colList) {
-                colList.innerHTML = '';
-                const colLabels = { status: 'Vz Anteil', soll: 'Soll Std', ist: 'Ist Std', days: 'AT Netto', diff: 'Diff +/-', prev: 'Vormonat' };
+            const colList = document.getElementById('columnToggleList'); if(colList) { colList.innerHTML = '';
+                const colLabels = { status: 'Vz Anteil', soll: 'Soll Std', ist: 'Ist Std', diff: 'Diff +/-', prev: 'Vormonat' };
                 Object.keys(colLabels).forEach(key => {
                     const div = document.createElement('div'); div.className = "flex items-center justify-between p-2 bg-black/5 rounded-xl border border-white/5";
                     div.innerHTML = `<span class="text-[11px] font-bold text-current">${colLabels[key]}</span><button onclick="toggleColumn('${key}')" class="w-10 h-5 rounded-full relative transition-all ${viewSettings[key] ? 'bg-blue-600' : 'bg-slate-300'}"><div class="absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${viewSettings[key] ? 'right-1' : 'left-1'}"></div></button>`;
                     colList.appendChild(div);
                 });
             }
-            const shiftList = document.getElementById('shiftToggleList');
-            if(shiftList) {
-                shiftList.innerHTML = '';
-                Object.keys(SHIFT_TYPES).forEach(key => {
-                    if(key === 'X') return;
+            const shiftList = document.getElementById('shiftToggleList'); if(shiftList) { shiftList.innerHTML = '';
+                Object.keys(SHIFT_TYPES).forEach(key => { if(key === 'X') return;
                     const btn = document.createElement('button'); btn.onclick = () => toggleShiftCounter(key);
-                    btn.className = `px-3 py-1.5 rounded-xl text-[9px] font-black border transition-all shadow-sm ${shiftCounterSettings[key] ? 'bg-blue-600 text-white border-blue-500 scale-105' : 'bg-black/5 border-white/5 text-slate-500'}`;
-                    btn.innerText = key;
-                    shiftList.appendChild(btn);
+                    btn.className = `px-3 py-1.5 rounded-xl text-[9px] font-black border transition-all ${shiftCounterSettings[key] ? 'bg-blue-600 text-white border-blue-500 scale-105' : 'bg-black/5 border-white/5 text-slate-500'}`;
+                    btn.innerText = key; shiftList.appendChild(btn);
                 });
             }
             document.getElementById('columnOverlay').style.display = 'flex';
@@ -831,15 +780,12 @@
         function closeColumnModal() { document.getElementById('columnOverlay').style.display = 'none'; }
         function toggleColumn(key) { viewSettings[key] = !viewSettings[key]; localStorage.setItem('view_settings', JSON.stringify(viewSettings)); openColumnModal(); renderRoster(); }
         function toggleShiftCounter(key) { shiftCounterSettings[key] = !shiftCounterSettings[key]; localStorage.setItem('shift_counter_settings', JSON.stringify(shiftCounterSettings)); openColumnModal(); renderRoster(); }
-        
         function openYearModal() { document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); document.getElementById('yearViewOverlay').style.display = 'flex'; }
         function closeYearModal() { document.getElementById('yearViewOverlay').style.display = 'none'; }
         function renderMonthGrid() { const container = document.getElementById('monthGrid'); container.innerHTML = ''; const months = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]; months.forEach((m, i) => { const btn = document.createElement('button'); const isCurrent = currentDate.getMonth() === i; btn.className = `p-3 rounded-xl text-[9px] font-black uppercase transition-all border ${isCurrent ? 'bg-blue-600 text-white shadow-lg' : 'bg-black/5 text-current'}`; btn.innerText = m; btn.onclick = () => { currentDate.setMonth(i); renderRoster(); closeYearModal(); }; container.appendChild(btn); }); }
         function changeYear(o) { currentDate.setFullYear(currentDate.getFullYear() + o); document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); }
-        
         function renderShiftPalette() {
-            const c = document.getElementById('shiftPalette'); 
-            c.innerHTML = `<button onclick="activeShift='NOTE'; renderShiftPalette()" class="flex shrink-0 items-center gap-2 p-1.5 rounded-xl border transition-all ${activeShift==='NOTE'?'bg-yellow-500/20 border-yellow-500 scale-105 shadow-lg':'bg-black/5 border-white/5'}"><div class="w-8 h-8 rounded-lg bg-yellow-500 flex items-center justify-center shadow-md"><i data-lucide="sticky-note" size="14"></i></div></button>`;
+            const c = document.getElementById('shiftPalette'); c.innerHTML = `<button onclick="activeShift='NOTE'; renderShiftPalette()" class="flex shrink-0 items-center gap-2 p-1.5 rounded-xl border transition-all ${activeShift==='NOTE'?'bg-yellow-500/20 border-yellow-500 scale-105 shadow-lg':'bg-black/5 border-white/5'}"><div class="w-8 h-8 rounded-lg bg-yellow-500 flex items-center justify-center shadow-md"><i data-lucide="sticky-note" size="14"></i></div></button>`;
             Object.entries(SHIFT_TYPES).forEach(([k, v]) => {
                 const b = document.createElement('button'); b.onclick = () => { activeShift = k; renderShiftPalette(); };
                 b.className = `flex shrink-0 items-center gap-2 p-1.5 rounded-xl border transition-all ${activeShift===k?'bg-blue-500/20 border-blue-500 scale-105 shadow-lg':'bg-black/5 border-white/5'}`;
@@ -847,12 +793,25 @@
                 c.appendChild(b);
             }); lucide.createIcons();
         }
+        function getHolidaysNRW(year) {
+            const f = Math.floor, G = year % 19, C = f(year / 100), H = (C - f(C / 4) - f((8 * C + 13) / 25) + 19 * G + 15) % 30, I = H - f(H / 28) * (1 - f(29 / (H + 1)) * f((21 - G) / 11)), J = (year + f(year / 4) + I + 2 - C + f(C / 4)) % 7, L = I - J, month = 3 + f((L + 40) / 44), day = L + 28 - 31 * f(month / 4);
+            const easter = new Date(year, month - 1, day);
+            const add = (d, n) => { const r = new Date(d); r.setDate(r.getDate()+n); return r.toISOString().split('T')[0]; };
+            return { [`${year}-01-01`]:"N", [add(easter,-2)]:"K", [add(easter,1)]:"O", [`${year}-05-01`]:"T", [add(easter,39)]:"C", [add(easter,50)]:"P", [add(easter,60)]:"F", [`${year}-10-03`]:"E", [`${year}-11-01`]:"A", [`${year}-12-25`]:"W1", [`${year}-12-26`]:"W2" };
+        }
+        function calculateWorkingDays(year, month) {
+            const h = getHolidaysNRW(year); let count = 0; const d = new Date(year, month, 1);
+            while (d.getMonth() === month) {
+                if (d.getDay() !== 0 && d.getDay() !== 6 && !h[d.toISOString().split('T')[0]]) count++;
+                d.setDate(d.getDate() + 1);
+            }
+            return count;
+        }
+        function showToast(m, i) { const t = document.getElementById('toast'); document.getElementById('toastMessage').innerText = m; const iconEl = document.getElementById('toastIcon'); iconEl.innerHTML = `<i data-lucide="${i}"></i>`; lucide.createIcons(); t.style.display = 'flex'; setTimeout(()=>t.style.display='none', 3000); }
 
         window.onload = async () => {
             if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
-            renderRoster(); await initFirebase();
-            
-            // Globale Registry
+            updateViewButtons(); renderRoster(); await initFirebase();
             window.openColumnModal = openColumnModal; window.closeColumnModal = closeColumnModal;
             window.openYearModal = openYearModal; window.closeYearModal = closeYearModal;
             window.changeYear = changeYear; window.toggleWarnings = toggleWarnings;
@@ -860,7 +819,8 @@
             window.adjustZoom = adjustZoom; window.loadCloudData = loadCloudData;
             window.openShiftModal = openShiftModal; window.closeShiftModal = closeShiftModal;
             window.addShiftType = addShiftType; window.deleteShiftType = deleteShiftType;
-            window.exportToPDF = exportToPDF;
+            window.exportToPDF = exportToPDF; window.toggleViewMode = toggleViewMode;
+            window.handleNavigation = handleNavigation;
         };
     </script>
 </body>
