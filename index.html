@@ -95,6 +95,10 @@
 
         .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(120, 120, 120, 0.3); border-radius: 10px; }
+        
+        /* Zoom Slider Styling */
+        input[type=range].zoom-slider::-webkit-slider-runnable-track { background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px; }
+        input[type=range].zoom-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 12px; width: 12px; border-radius: 50%; background: #3b82f6; margin-top: -4px; }
     </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -144,11 +148,6 @@
                 <div>
                     <p class="text-[10px] uppercase font-black text-slate-500 mb-2 tracking-widest mt-4">Schichten zählen (Fußzeile)</p>
                     <div class="flex flex-wrap gap-2 pt-2" id="shiftToggleList"></div>
-                </div>
-
-                <div>
-                    <p class="text-[10px] uppercase font-black text-slate-500 mb-2 tracking-widest mt-4">Zoom</p>
-                    <input type="range" id="zoomSlider" min="0.5" max="1.5" step="0.05" value="1" oninput="adjustZoom(0)" class="w-full accent-blue-600">
                 </div>
             </div>
             <button onclick="closeColumnModal()" class="w-full py-4 mt-6 bg-blue-600 text-white rounded-xl font-bold">Fertig</button>
@@ -246,6 +245,14 @@
                     <button onclick="handleNavigation(-1)" class="p-1.5 hover:bg-white/10 rounded-lg"><i data-lucide="chevron-left" size="14"></i></button>
                     <div id="monthLabel" onclick="openYearModal()" class="px-3 font-black text-[11px] uppercase cursor-pointer min-w-[110px] text-center">Monat</div>
                     <button onclick="handleNavigation(1)" class="p-1.5 hover:bg-white/10 rounded-lg"><i data-lucide="chevron-right" size="14"></i></button>
+                </div>
+
+                <!-- Zoom Regler im Header -->
+                <div class="hidden lg:flex items-center gap-2 px-3 py-1 bg-black/20 rounded-xl border border-white/5 shrink-0">
+                    <button onclick="adjustZoom(-0.05)" class="text-slate-500 hover:text-white transition-colors"><i data-lucide="minus-circle" size="14"></i></button>
+                    <input type="range" id="zoomSlider" min="0.5" max="1.5" step="0.05" value="1" oninput="adjustZoom(0)" class="w-16 h-1 appearance-none bg-white/10 rounded-full zoom-slider cursor-pointer accent-blue-500">
+                    <button onclick="adjustZoom(0.05)" class="text-slate-500 hover:text-white transition-colors"><i data-lucide="plus-circle" size="14"></i></button>
+                    <span id="zoomText" class="text-[9px] font-black text-blue-500 min-w-[28px]">100%</span>
                 </div>
 
                 <div id="headerWorkingDays" class="px-3 py-2 bg-blue-500/10 text-blue-400 text-[10px] font-black rounded-xl border border-blue-500/20 hidden md:block shrink-0">
@@ -643,12 +650,21 @@
             setTimeout(() => { window.print(); viewMode = oldMode; renderRoster(); }, 500);
         }
 
-        function adjustZoom(d) { const s = document.getElementById('zoomSlider'); document.documentElement.style.setProperty('--zoom-factor', s.value); }
+        function adjustZoom(delta) { 
+            const slider = document.getElementById('zoomSlider'); 
+            let val = delta === 0 ? parseFloat(slider.value) : parseFloat(slider.value) + delta; 
+            val = Math.max(0.5, Math.min(1.5, val)); 
+            slider.value = val; 
+            document.documentElement.style.setProperty('--zoom-factor', val); 
+            document.getElementById('zoomText').innerText = Math.round(val * 100) + '%'; 
+        }
+
         function openYearModal() { document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); document.getElementById('yearViewOverlay').style.display = 'flex'; }
         function closeYearModal() { document.getElementById('yearViewOverlay').style.display = 'none'; }
         function renderMonthGrid() { const container = document.getElementById('monthGrid'); container.innerHTML = ''; const months = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]; months.forEach((m, i) => { const btn = document.createElement('button'); const isCurrent = currentDate.getMonth() === i; btn.className = `p-3 rounded-xl text-[9px] font-black uppercase transition-all border ${isCurrent ? 'bg-blue-600 text-white shadow-lg' : 'bg-black/5 text-current'}`; btn.innerText = m; btn.onclick = () => { currentDate.setMonth(i); renderRoster(); closeYearModal(); }; container.appendChild(btn); }); }
         function changeYear(o) { currentDate.setFullYear(currentDate.getFullYear() + o); document.getElementById('yearDisplay').innerText = currentDate.getFullYear(); renderMonthGrid(); }
         function showToast(m, i) { const t = document.getElementById('toast'); document.getElementById('toastMessage').innerText = m; const iconEl = document.getElementById('toastIcon'); iconEl.innerHTML = `<i data-lucide="${i}"></i>`; lucide.createIcons(); t.style.display = 'flex'; setTimeout(()=>t.style.display='none', 3000); }
+        function calculateWorkingDays(y, m) { let c = 0; const d = new Date(y, m, 1); while (d.getMonth() === m) { if (d.getDay() !== 0 && d.getDay() !== 6) c++; d.setDate(d.getDate() + 1); } return c; }
 
         window.onload = async () => { 
             await initFirebase(); 
